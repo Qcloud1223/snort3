@@ -80,6 +80,7 @@
 using namespace snort;
 using namespace std;
 
+/* Q: declare the actions of a packet */
 static MainHook_f main_hook = snort_ignore;
 
 THREAD_LOCAL ProfileStats daqPerfStats;
@@ -745,6 +746,7 @@ Analyzer::~Analyzer()
     delete retry_queue;
 }
 
+/* Q: callback function of Analyzer, under a new thread */
 void Analyzer::operator()(Swapper* ps, uint16_t run_num)
 {
     oops_handler->tinit();
@@ -793,6 +795,7 @@ void Analyzer::execute(AnalyzerCommand* ac)
 
     /* Break out of the DAQ acquire loop so that the command will be processed.
         This is explicitly safe to call from another thread. */
+    /* Q: this sounds like 'each pig thread is polling packets until main thread interrupt it' */
     if ( state >= State::STARTED and state < State::STOPPED and daq_instance )
         daq_instance->interrupt();
 }
@@ -862,6 +865,7 @@ void Analyzer::handle_uncompleted_commands()
     }
 }
 
+/* Q: main processing loop of the worker */
 DAQ_RecvStatus Analyzer::process_messages()
 {
     // Max receive becomes the minimum of the configured batch size, the remaining exit_after
@@ -911,6 +915,7 @@ DAQ_RecvStatus Analyzer::process_messages()
     return rstat;
 }
 
+/* Q: main loop of worker thread */
 void Analyzer::analyze()
 {
     while (!exit_requested)
@@ -930,6 +935,7 @@ void Analyzer::analyze()
         // Receive and process a batch of messages.  Evaluate the receive status after processing
         // the returned messages to determine if we should immediately continue, take the opportunity
         // to deal with some house cleaning work, or terminate the analyzer thread.
+        /* Q: Message is a concept under DAQ. Roughly, DAQ is packet+metadata */
         DAQ_RecvStatus rstat = process_messages();
         if (rstat != DAQ_RSTAT_OK && rstat != DAQ_RSTAT_WOULD_BLOCK)
         {
@@ -946,6 +952,7 @@ void Analyzer::analyze()
                 // If the status reports INTERRUPTED because of an interrupt() call, exit_requested should
                 // be set for the next pass through the main loop.  Use this as a hint to check for analyzer
                 // commands.
+                /* Q: This is only control plane messages, we don't care */
                 handle_commands();
             }
             else

@@ -1017,6 +1017,7 @@ static void handle(Pig& pig, unsigned& swine, unsigned& pending_privileges)
         else
         {
             Snort::do_pidfile();
+            /* Q: if the pig is started, execute its command in this run */
             pig.queue_command(new ACRun(paused), true);
         }
         break;
@@ -1072,6 +1073,7 @@ static void main_loop()
             else if ( pending_privileges )
                 pending_privileges--;
 
+            /* Q: exit condition: all swines are destroyed, and exit is requested */
             if ( !swine and exit_requested )
                 break;
 
@@ -1080,6 +1082,9 @@ static void main_loop()
 
         if (!all_pthreads_started)
         {
+            /* Q: It seems that each pig/swine == thread
+             * BTW, `Trough' means where the pigs eat and drink...
+             */
             all_pthreads_started = true;
             const unsigned num_threads = (!Trough::has_next()) ? swine : max_pigs;
             for (unsigned i = 0; i < num_threads; i++)
@@ -1101,6 +1106,7 @@ static void main_loop()
 
         if ( !exit_requested and (swine < max_pigs) and (src = Trough::get_next()) )
         {
+            /* Q: so-called lazy pig seems like analyzer instances (and thus offline?) */
             Pig* pig = get_lazy_pig(max_pigs);
             if (pig->prep(src))
                 ++swine;
