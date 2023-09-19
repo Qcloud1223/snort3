@@ -772,10 +772,31 @@ void Analyzer::operator()(Swapper* ps, uint16_t run_num)
     SFDAQ::set_local_instance(daq_instance);
     set_state(State::INITIALIZED);
 
+    /* Q: manipulate fd to enable record until certain time */
+    /* allow program to run when not being perf'd */
+    int perf_ctl_fd, perf_ctl_ack_fd;
+    char ack[5];
+    if (getenv("PERF_CTL_FD") != nullptr) {
+        perf_ctl_fd = atoi(getenv("PERF_CTL_FD"));
+        perf_ctl_ack_fd = atoi(getenv("PERF_CTL_ACK_FD"));
+
+        write(perf_ctl_fd, "enable\n", 8);
+        read(perf_ctl_ack_fd, ack, 5);
+        assert(strcmp(ack, "ack\n") == 0);
+    }
+
+    /* Q: now start processing packets normally */
     Profiler::start();
 
     // Start the main loop
     analyze();
+
+    /* Q: packet processing is done, halt recording */
+    if (getenv("PERF_CTL_FD") != nullptr) {
+        write(perf_ctl_fd, "disable\n", 9);
+        read(perf_ctl_ack_fd, ack, 5);
+        assert(strcmp(ack, "ack\n") == 0);
+    }
 
     Profiler::stop(pc.analyzed_pkts);
     term();
