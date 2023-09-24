@@ -40,12 +40,16 @@ def populate_in_cache(addr : int, cache : dict) -> bool:
 def return_from_function(insn : list, func_name : str, func_to_check : str) -> bool:
     if func_name != func_to_check:
         return False
+    # explicit return
     if len(insn) == 1 and insn[0] == 'c3':
         return True
-    # some functions does not explicitly return, such as finish_inspect_with_latency
+    # some functions does not explicitly return
+    # In this case, use their name in accord with finializing instructions
     if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '25' and insn[2] == '52' and insn[3] == '0b' and insn[4] == '00':
         return True
     if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '6e' and insn[2] == 'fd' and insn[3] == 'ff' and insn[4] == 'ff':
+        return True
+    if len(insn) == 2 and insn[0] == 'ff' and insn[1] == 'e0' and func_name == 'snort::InspectorManager::bumble':
         return True
     return False
 
@@ -119,7 +123,7 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
                     for fn in sub_func_to_measure:
                         # some function we are interested in might not present
                         try:
-                            print(f"\t{fn}: {float(breakdown[fn]) / len(cache):.1%}", end="")
+                            print(f"\t{fn}: {breakdown[fn]} ({float(breakdown[fn]) / len(cache):.1%})", end="")
                             total += float(breakdown[fn]) / len(cache)
                         except KeyError:
                             pass
@@ -149,7 +153,7 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
 # top level breakdown: internal execute has at least 50% of the instructions
 # measure_function("process_packet", ["snort::InspectorManager::internal_execute<false>", "snort::DetectionEngine::detect", "snort::DetectionEngine::finish_inspect_with_latency", "snort::DetectionEngine::finish_inspect"])
 # internal_execute breakdown: one packet does not call this function exactly once
-measure_function("snort::InspectorManager::internal_execute<false>", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval"])
+measure_function("snort::InspectorManager::internal_execute<false>", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
 
 # num_lines = sum(1 for _ in open(trace_name, "r"))
 
