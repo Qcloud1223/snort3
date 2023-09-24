@@ -610,6 +610,7 @@ bool DetectionEngine::detect(Packet* p, bool offload_ok)
     case PktType::ICMP:
     case PktType::FILE:
     case PktType::USER:
+        /* Q: only packet with flow can be offloaded? */
         if ( offload_ok and p->flow )
             return offload(p);
 
@@ -622,6 +623,7 @@ bool DetectionEngine::detect(Packet* p, bool offload_ok)
     return false;
 }
 
+/* Q: usually in alert mode, main_hook will point to this function */
 bool DetectionEngine::inspect(Packet* p)
 {
     bool inspected = false;

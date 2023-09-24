@@ -197,6 +197,7 @@ static bool process_packet(Packet* p)
 
     daq_stats.rx_bytes += p->pktlen;
 
+    /* Q: PacketTracer seems to perform some job under L3... This structure is weird */
     PacketTracer::activate(*p);
 
     p->user_inspection_policy_id = get_inspection_policy()->user_policy_id;
@@ -205,8 +206,10 @@ static bool process_packet(Packet* p)
 
     if ( !(p->packet_flags & PKT_IGNORE) )
     {
+        /* Q: inline for set_file_data. Should be setting flow-related context */
         clear_file_data();
         // return incomplete status if the main hook indicates not all work was done
+        /* Q: all packets eventually go to main_hook */
         if (!main_hook(p))
             return false;
     }
@@ -430,6 +433,10 @@ void Analyzer::process_daq_pkt_msg(DAQ_Msg_h msg, bool retry)
 
     PacketManager::decode(p, pkthdr, data, data_len, false, retry);
 
+    /* Q: tell if a packet is done or not. If it is done, the switcher of analyzer will be stopped */
+    /* Q: the biggest problem we have here is that, what will snort do if the packet still have some
+     * remaining work? When will it turn to this packet again?
+     */
     if (process_packet(p))
     {
         post_process_daq_pkt_msg(p);

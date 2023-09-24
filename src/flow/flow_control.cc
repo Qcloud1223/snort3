@@ -402,6 +402,7 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
             if ( !want_flow(type, p) )
                 return true;
 
+            /* Q: populate flow into hash table */
             flow = cache->allocate(&key);
 
             if ( !flow )

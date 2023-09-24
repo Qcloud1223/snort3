@@ -2014,11 +2014,13 @@ void InspectorManager::print_config(SnortConfig* sc)
 // packet handling
 //-------------------------------------------------------------------------
 
+/* Q: inner layer of internal processing function */
 template<bool T>
 static inline void execute(
     Packet* p, PHInstance* const * prep, unsigned num, bool probe = false)
 {
     Stopwatch<SnortClock> timer;
+    /* Q: maybe `prep` refer to something similar to rules? */
     for ( unsigned i = 0; i < num; ++i, ++prep )
     {
         if ( p->packet_flags & PKT_PASS_RULE )
@@ -2104,6 +2106,7 @@ void inline InspectorManager::full_inspection(Packet* p)
     else if ( flow->gadget && flow->gadget->likes(p) )
     {
         if ( !T )
+            /* Q: call goes to Stream::eval, dealing with flow related process */
             flow->gadget->eval(p);
         else
         {
@@ -2237,11 +2240,13 @@ inline void InspectorManager::internal_execute(Packet* p)
 // new it_xxx) is run just once per flow (and all non-flow packets).
 void InspectorManager::execute(Packet* p)
 {
+    /* Q: this function takes a bool to check if it needs to log */
     if ( trace_enabled(snort_trace, TRACE_INSPECTOR_MANAGER, DEFAULT_TRACE_LOG_LEVEL, p) )
         internal_execute<true>(p);
     else
         internal_execute<false>(p);
 
+    /* Q: maybe expectflow means connection already built? */
     if ( p->flow && ( !p->is_cooked() or p->is_defrag() ) )
         ExpectFlow::handle_expected_flows(p);
 }

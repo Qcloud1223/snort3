@@ -252,6 +252,7 @@ void StreamBase::show(const SnortConfig* sc) const
     config.show();
 }
 
+/* Q: parse a packet detailedly */
 void StreamBase::eval(Packet* p)
 {
     Profile profile(s5PerfStats);

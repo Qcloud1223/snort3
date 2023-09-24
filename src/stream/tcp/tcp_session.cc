@@ -94,6 +94,7 @@ TcpSession::~TcpSession()
     clear_session(true, false, false);
 }
 
+/* Q: setting up bidirectional TCP stack */
 bool TcpSession::setup(Packet*)
 {
     client.init_tcp_state();
