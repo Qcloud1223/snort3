@@ -278,6 +278,8 @@ end
 -- NB: the copy under installation path will be overridden upon `make install`
 -- NB: To enable trace.modules.detection, cmake must be configured with --enable-debug-msgs
 --     and then run `snort --help-modules trace` will give more options than default
+-- NB: `debug_logf` will be output on a per-module basis, when corresponding variable is set
+--     search in each module to get more info
 trace.modules = {
     snort = {
         all = 1
