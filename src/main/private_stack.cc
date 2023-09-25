@@ -7,6 +7,8 @@ void *StackTops[MAX_STACK_NUM];
 int CurrStack = 0;
 unsigned ReservedStacks = 0;
 
+static int finished_idx = -1;
+
 void init_stacks()
 {
     size_t wholesize = MAX_STACK_NUM * MAX_STACK_SIZE;
@@ -24,6 +26,7 @@ void reserve_stacks(unsigned num)
     assert(num <= MAX_STACK_NUM);
     NumStacks = num;
     ReservedStacks = 0;
+    finished_idx = -1;
 }
 
 /* NB: stack index can be negative! */
@@ -47,19 +50,21 @@ void stack_next()
 void stack_back()
 {
     CurrStack++;
-    printf("Stack #%d switching back to main\n", CurrStack - 1);
+    // printf("Stack #%d switching back to main\n", CurrStack - 1);
     stack_switch(CurrStack - 1, -1);
 }
 
 void stack_end()
 {
     CurrStack++;
+    /* finished idx is always initialized as -1 */
+    finished_idx++;
     int to = CurrStack == NumStacks ? -1 : CurrStack;
-    printf("Finishing Stack #%d\n", to);
+    // printf("Finishing Stack #%d\n", to);
     stack_switch(CurrStack - 1, to);
 }
 
-void destroy_stacks()
+bool stack_finished(int idx)
 {
-    NumStacks = 0;
+    return finished_idx >= idx;
 }

@@ -942,8 +942,14 @@ DAQ_RecvStatus Analyzer::process_messages()
 
     unsigned num_recv = 0;
     DAQ_Msg_h msg;
+    /* Q: early return */
+    if (daq_instance->get_curr_batch_size() == 0)
+        goto finish;
     /* Q: initialize private stack information with batch just received */
     reserve_stacks(daq_instance->get_curr_batch_size());
+    /* Q: original implementation: loop the buffer, consume a packet once at a time, until it is exhausted.
+       Reuse the upper half.
+     */
     while ((msg = daq_instance->next_message()) != nullptr)
     {
         // Dispose of any messages to be skipped first.
@@ -959,11 +965,26 @@ DAQ_RecvStatus Analyzer::process_messages()
         num_recv++;
         // IMPORTANT: process_daq_msg() is responsible for finalizing the messages.
         process_daq_msg(msg, false);
-        DetectionEngine::onload();
-        process_retry_queue();
-        handle_uncompleted_commands();
     }
 
+    stack_switch(-1, 0);
+    
+    /* Q: current implementation: re-loop the buffer, process each packet many times, until we are satisfied */
+    while (!stack_finished(daq_instance->get_curr_pkt_idx())) {
+        if (daq_instance->get_curr_batch_size() == 0)
+            break;
+        msg = daq_instance->next_message_loop();
+        /* Q: note that in the original semantics, these functions will only be called every time a packet is processed
+        *  so before calling them, we have to make sure: is the current packet finished?
+        */
+        if (stack_finished(daq_instance->get_curr_pkt_idx())) {
+            DetectionEngine::onload();
+            process_retry_queue();
+            handle_uncompleted_commands();
+        }
+    }
+    
+finish:
     if (exit_after_cnt && (exit_after_cnt -= num_recv) == 0)
         stop();
     if (pause_after_cnt && (pause_after_cnt -= num_recv) == 0)

@@ -27,7 +27,7 @@ void stack_switch(int from, int to);
 void stack_next();
 void stack_back();
 void stack_end();
-void destroy_stacks();
+bool stack_finished(int idx);
 extern bool priv_stk_ret;
 
 /* asm interfaces */

@@ -56,12 +56,18 @@ public:
             return daq_msgs[curr_batch_idx++];
         return nullptr;
     }
+    /* Q: receive messages, without caring about batch index (it will be cleared out upon next `receive_messages` call) */
+    DAQ_Msg_h next_message_loop()
+    {
+        return daq_msgs[curr_batch_idx++ % curr_batch_size];
+    }
     int finalize_message(DAQ_Msg_h msg, DAQ_Verdict verdict);
     const char* get_error();
 
     int get_base_protocol() const;
     uint32_t get_batch_size() const { return batch_size; }
     unsigned get_curr_batch_size() const { return curr_batch_size; }
+    unsigned get_curr_pkt_idx() const { return curr_batch_idx % curr_batch_size; }
     uint32_t get_pool_available() const { return pool_available; }
     const char* get_input_spec() const;
     const DAQ_Stats_t* get_stats();
