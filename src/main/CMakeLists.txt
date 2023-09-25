@@ -24,6 +24,9 @@ endif ( ENABLE_SHELL )
 
 add_subdirectory(test)
 
+enable_language(ASM)
+SET(CMAKE_ASM_FLAGS "${CFLAGS} -x assembler-with-cpp")
+
 add_library (main OBJECT
     analyzer.cc
     analyzer_command.cc
@@ -36,6 +39,8 @@ add_library (main OBJECT
     oops_handler.cc
     oops_handler.h
     policy.cc
+    private_stack.cc
+    private_stack.h
     reload_tracker.cc
     shell.h
     shell.cc
@@ -44,6 +49,7 @@ add_library (main OBJECT
     snort_config.cc
     snort_module.h
     snort_module.cc
+    stack_switch.S
     swapper.cc
     thread.cc
     thread_config.h

@@ -217,6 +217,29 @@ static bool process_packet(Packet* p)
     return true;
 }
 
+#include "private_stack.h"
+/* avoid tenative definition */
+bool priv_stk_ret;
+static bool process_packet_with_stack(Packet *p)
+{
+    if (SaveStack(&DefaultStack) == 0) {
+        /* move stack pointer */
+        asm(
+            "movq %0, %%rsp "
+            :
+            : "rm"(StackTops[CurrStack])
+            :);
+        CurrStack++;
+        /* TODO: to be safe, save the return value in global variables */
+        priv_stk_ret = process_packet(p);
+        /* To ensure `func` in private stack can return with correct address
+         * context must be restored before returning from this function
+         */
+        RestoreStack(&DefaultStack);
+    }
+    return priv_stk_ret;
+}
+
 static inline bool is_sticky_verdict(const DAQ_Verdict verdict)
 {
     return verdict == DAQ_VERDICT_WHITELIST or verdict == DAQ_VERDICT_BLACKLIST
@@ -437,7 +460,7 @@ void Analyzer::process_daq_pkt_msg(DAQ_Msg_h msg, bool retry)
     /* Q: the biggest problem we have here is that, what will snort do if the packet still have some
      * remaining work? When will it turn to this packet again?
      */
-    if (process_packet(p))
+    if (process_packet_with_stack(p))
     {
         post_process_daq_pkt_msg(p);
         switcher->stop();
@@ -517,7 +540,7 @@ bool Analyzer::process_rebuilt_packet(Packet* p, const DAQ_PktHdr_t* pkthdr, con
     p->packet_flags |= (PKT_PSEUDO | PKT_REBUILT_FRAG);
     p->pseudo_type = PSEUDO_PKT_IP;
 
-    return process_packet(p);
+    return process_packet_with_stack(p);
 }
 
 void Analyzer::post_process_packet(Packet* p)
@@ -916,6 +939,8 @@ DAQ_RecvStatus Analyzer::process_messages()
 
     unsigned num_recv = 0;
     DAQ_Msg_h msg;
+    /* Q: initialize private stack information with batch just received */
+    reserve_stacks(daq_instance->get_curr_batch_size());
     while ((msg = daq_instance->next_message()) != nullptr)
     {
         // Dispose of any messages to be skipped first.

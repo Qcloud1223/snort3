@@ -506,6 +506,7 @@ void DetectionEngine::onload(Flow* flow)
     assert(!offloader->on_hold(flow));
 }
 
+/* Q: try to process packets on fast path, until cannot find one */
 void DetectionEngine::onload()
 {
     Profile profile(mpsePerfStats);
@@ -623,6 +624,7 @@ bool DetectionEngine::detect(Packet* p, bool offload_ok)
     return false;
 }
 
+#include "main/private_stack.h"
 /* Q: usually in alert mode, main_hook will point to this function */
 bool DetectionEngine::inspect(Packet* p)
 {
@@ -642,6 +644,7 @@ bool DetectionEngine::inspect(Packet* p)
         else
         {
             enable_content(p);
+            stack_next();
 
             InspectorManager::execute(p);
             inspected = true;
@@ -659,6 +662,8 @@ bool DetectionEngine::inspect(Packet* p)
     }
     finish_inspect(p, inspected);
 
+    /* When the last packet reach here, stack_end will jump back to the main stack */
+    stack_end();
     return true;
 }
 

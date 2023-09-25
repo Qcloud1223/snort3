@@ -61,6 +61,7 @@ public:
 
     int get_base_protocol() const;
     uint32_t get_batch_size() const { return batch_size; }
+    unsigned get_curr_batch_size() const { return curr_batch_size; }
     uint32_t get_pool_available() const { return pool_available; }
     const char* get_input_spec() const;
     const DAQ_Stats_t* get_stats();
