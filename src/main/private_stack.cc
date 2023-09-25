@@ -1,3 +1,5 @@
+#include <stdio.h>
+
 #include "private_stack.h"
 
 void init_stacks()
@@ -31,6 +33,7 @@ void stack_next()
 {
     CurrStack++;
     int to = CurrStack == NumStacks ? 0 : CurrStack;
+    printf("Preparing switching to Stack #%d\n", to);
     stack_switch(CurrStack - 1, to);
 }
 
@@ -38,6 +41,7 @@ void stack_end()
 {
     CurrStack++;
     int to = CurrStack == NumStacks ? -1 : CurrStack;
+    printf("Finishing Stack #%d\n", to);
     stack_switch(CurrStack - 1, to);
 }
 
