@@ -644,7 +644,7 @@ bool DetectionEngine::inspect(Packet* p)
         else
         {
             enable_content(p);
-            stack_next();
+            stack_back();
 
             InspectorManager::execute(p);
             inspected = true;

@@ -2,6 +2,11 @@
 
 #include "private_stack.h"
 
+RegSet DefaultStack;
+void *StackTops[MAX_STACK_NUM];
+int CurrStack = 0;
+unsigned ReservedStacks = 0;
+
 void init_stacks()
 {
     size_t wholesize = MAX_STACK_NUM * MAX_STACK_SIZE;
@@ -18,9 +23,11 @@ void reserve_stacks(unsigned num)
 {
     assert(num <= MAX_STACK_NUM);
     NumStacks = num;
+    ReservedStacks = 0;
 }
 
-void stack_switch(unsigned from, unsigned to)
+/* NB: stack index can be negative! */
+void stack_switch(int from, int to)
 {
     RegSet *fromStack = from < 0 ? &DefaultStack : &CalleeRegs[from];
     RegSet *toStack   = to < 0 ? &DefaultStack : &CalleeRegs[to];
@@ -35,6 +42,13 @@ void stack_next()
     int to = CurrStack == NumStacks ? 0 : CurrStack;
     printf("Preparing switching to Stack #%d\n", to);
     stack_switch(CurrStack - 1, to);
+}
+
+void stack_back()
+{
+    CurrStack++;
+    printf("Stack #%d switching back to main\n", CurrStack - 1);
+    stack_switch(CurrStack - 1, -1);
 }
 
 void stack_end()

@@ -11,18 +11,21 @@ typedef void *RegSet[9];
 #define MAX_STACK_NUM 64
 #define MAX_STACK_SIZE ((1 << 23))
 static RegSet CalleeRegs[MAX_STACK_NUM];
-static RegSet DefaultStack;
-static void *StackTops[MAX_STACK_NUM];
-
 static unsigned NumStacks;
-static unsigned CurrStack = 0;
+
+/* Q: create stack now happens in another module, so this has to be non-static */
+extern RegSet DefaultStack;
+extern void *StackTops[MAX_STACK_NUM];
+extern int CurrStack;
+extern unsigned ReservedStacks;
 
 /* public interfaces */
 void init_stacks();
 void reserve_stacks(unsigned num);
 // bool process_packet_with_stack(snort::Packet *p);
-void stack_switch(unsigned from, unsigned to);
+void stack_switch(int from, int to);
 void stack_next();
+void stack_back();
 void stack_end();
 void destroy_stacks();
 extern bool priv_stk_ret;

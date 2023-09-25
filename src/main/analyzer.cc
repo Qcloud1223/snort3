@@ -227,9 +227,9 @@ static bool process_packet_with_stack(Packet *p)
         asm(
             "movq %0, %%rsp "
             :
-            : "rm"(StackTops[CurrStack])
+            : "rm"(StackTops[ReservedStacks])
             :);
-        CurrStack++;
+        CurrStack = ReservedStacks++;
         /* TODO: to be safe, save the return value in global variables */
         priv_stk_ret = process_packet(p);
         /* To ensure `func` in private stack can return with correct address
@@ -814,6 +814,9 @@ void Analyzer::operator()(Swapper* ps, uint16_t run_num)
         read(perf_ctl_ack_fd, ack, 5);
         assert(strcmp(ack, "ack\n") == 0);
     }
+
+    /* Initialize the stack only once */
+    init_stacks();
 
     /* Q: now start processing packets normally */
     Profiler::start();
