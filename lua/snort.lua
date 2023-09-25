@@ -274,3 +274,15 @@ if ( tweaks ~= nil ) then
     include(tweaks .. '.lua')
 end
 
+-- enable all tracing
+-- NB: the copy under installation path will be overridden upon `make install`
+-- NB: To enable trace.modules.detection, cmake must be configured with --enable-debug-msgs
+--     and then run `snort --help-modules trace` will give more options than default
+trace.modules = {
+    snort = {
+        all = 1
+    },
+    detection = {
+        all = 1
+    }
+}
