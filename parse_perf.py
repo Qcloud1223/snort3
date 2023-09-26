@@ -38,19 +38,27 @@ def populate_in_cache(addr : int, cache : dict) -> bool:
         return True
 
 def return_from_function(insn : list, func_name : str, func_to_check : str) -> bool:
-    if func_name != func_to_check:
+    if len(insn) != 1:
         return False
-    # explicit return
-    if len(insn) == 1 and insn[0] == 'c3':
+    if insn[0] != 'c3':
+        return False
+    # exact match
+    if func_name == func_to_check:
         return True
-    # some functions does not explicitly return
-    # In this case, use their name in accord with finializing instructions
-    if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '25' and insn[2] == '52' and insn[3] == '0b' and insn[4] == '00':
+    # Under heavy optimization, some functions will be inlined to save the overhead of calls
+    # In this case, find the last function that actually returns
+    if func_name == 'snort::InspectorManager::probe' and func_to_check == 'snort::DetectionEngine::finish_inspect_with_latency':
         return True
-    if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '6e' and insn[2] == 'fd' and insn[3] == 'ff' and insn[4] == 'ff':
+    if func_name == 'snort::DetectionEngine::offload' and func_to_check == 'snort::DetectionEngine::detect':
         return True
-    if len(insn) == 2 and insn[0] == 'ff' and insn[1] == 'e0' and func_name == 'snort::InspectorManager::bumble':
-        return True
+    if func_name == 'TcpSession::restart' and func_to_check == 'snort::InspectorManager::bumble':
+        return True 
+    # if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '25' and insn[2] == '52' and insn[3] == '0b' and insn[4] == '00' and func_name == 'snort::DetectionEngine::finish_inspect_with_latency':
+    #     return True
+    # if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '6e' and insn[2] == 'fd' and insn[3] == 'ff' and insn[4] == 'ff' and func_name == 'snort::DetectionEngine::detect':
+    #     return True
+    # if len(insn) == 2 and insn[0] == 'ff' and insn[1] == 'e0' and func_name == 'snort::InspectorManager::bumble':
+    #     return True
     return False
 
 def enter_function(func_name_raw : str, func_to_check : str) -> bool:
