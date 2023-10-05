@@ -645,8 +645,7 @@ bool DetectionEngine::inspect(Packet* p)
         {
             enable_content(p);
             /* FIXME: temporary bypass */
-            if (!p->is_rebuilt())
-                stack_back();
+            stack_next();
 
             InspectorManager::execute(p);
             inspected = true;
@@ -665,8 +664,9 @@ bool DetectionEngine::inspect(Packet* p)
     finish_inspect(p, inspected);
 
     /* When the last packet reach here, stack_end will jump back to the main stack */
-    if (!p->is_rebuilt())
-        stack_end();
+    // if (!p->is_rebuilt())
+    stack_end();
+    stack_next();
     return true;
 }
 

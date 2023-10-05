@@ -28,6 +28,8 @@ void stack_next();
 void stack_back();
 void stack_end();
 bool stack_finished(int idx);
+int get_unfinished_stack();
+bool all_stacks_finished();
 extern bool priv_stk_ret;
 
 /* asm interfaces */

@@ -970,14 +970,14 @@ DAQ_RecvStatus Analyzer::process_messages()
     stack_switch(-1, 0);
     
     /* Q: current implementation: re-loop the buffer, process each packet many times, until we are satisfied */
-    while (!stack_finished(daq_instance->get_curr_pkt_idx())) {
+    while (!all_stacks_finished()) {
         if (daq_instance->get_curr_batch_size() == 0)
             break;
         msg = daq_instance->next_message_loop();
         /* Q: note that in the original semantics, these functions will only be called every time a packet is processed
         *  so before calling them, we have to make sure: is the current packet finished?
         */
-        if (stack_finished(daq_instance->get_curr_pkt_idx())) {
+        if (!stack_finished(daq_instance->get_curr_pkt_idx())) {
             DetectionEngine::onload();
             process_retry_queue();
             handle_uncompleted_commands();
