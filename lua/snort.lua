@@ -274,3 +274,11 @@ if ( tweaks ~= nil ) then
     include(tweaks .. '.lua')
 end
 
+trace.modules = {
+    snort = {
+        all = 1
+    },
+    detection = {
+        detect_engine = 1
+    }
+}
