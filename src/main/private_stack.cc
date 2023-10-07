@@ -9,6 +9,7 @@ int CurrStack = 0;
 unsigned ReservedStacks = 0;
 
 static int finished_idx = -1;
+/* NB: all operation against this vector should be 64 bit */
 static uint64_t finished_vector;
 static bool all_stacks_initialized = false;
 
@@ -32,6 +33,7 @@ void reserve_stacks(unsigned num)
     ReservedStacks = 0;
     finished_idx = -1;
     all_stacks_initialized = false;
+    finished_vector = 0;
 }
 
 /* NB: stack index can be negative! */
@@ -58,12 +60,12 @@ void stack_next()
     /* first, create all the stacks by naively going back to main */
     if (all_stacks_initialized == false) {
         CurrStack++;
-        // fprintf(stderr, "[Init] Switching from %d to %d\n", CurrStack - 1, -1);
+        fprintf(stderr, "[Init] Switching from %d to %d\n", CurrStack - 1, -1);
         stack_switch(CurrStack - 1, -1);
     }
     /* next, finish any unfinished stack */
     int to = get_unfinished_stack();
-    // fprintf(stderr, "[Fin] Switching from %d to %d\n", CurrStack, to);
+    fprintf(stderr, "[Fin] Switching from %d to %d\n", CurrStack, to);
     stack_switch(CurrStack, to);
 }
 
@@ -72,15 +74,17 @@ void stack_next()
  */
 void stack_end()
 {
-    // fprintf(stderr, "Ending stack #%d\n", CurrStack);
+    fprintf(stderr, "Ending stack #%d\n", CurrStack);
     assert(CurrStack >= 0);
     finished_vector |= ((uint64_t)1 << CurrStack);
 }
 
 bool all_stacks_finished()
 {
-    uint64_t fin_vec = ~(uint64_t)0 >> (64 - ReservedStacks);
-    return finished_vector == fin_vec;
+    /* Note that we cannot shift 64 bits */
+    uint64_t fin_vec = (ReservedStacks == 0) ? 0 : ~(uint64_t)0 >> (64 - ReservedStacks);
+    fprintf(stderr, "fin_vec: %lx, finish_vector: %lx\n", fin_vec, finished_vector);
+    return (finished_vector == fin_vec);
 }
 
 bool stack_finished(int idx)

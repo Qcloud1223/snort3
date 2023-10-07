@@ -220,25 +220,6 @@ static bool process_packet(Packet* p)
 #include "private_stack.h"
 /* avoid tenative definition */
 bool priv_stk_ret;
-static bool process_packet_with_stack(Packet *p)
-{
-    if (SaveStack(&DefaultStack) == 0) {
-        /* move stack pointer */
-        asm(
-            "movq %0, %%rsp "
-            :
-            : "rm"(StackTops[ReservedStacks])
-            :);
-        CurrStack = ReservedStacks++;
-        /* TODO: to be safe, save the return value in global variables */
-        priv_stk_ret = process_packet(p);
-        /* To ensure `func` in private stack can return with correct address
-         * context must be restored before returning from this function
-         */
-        RestoreStack(&DefaultStack);
-    }
-    return priv_stk_ret;
-}
 
 static inline bool is_sticky_verdict(const DAQ_Verdict verdict)
 {
@@ -454,16 +435,19 @@ void Analyzer::process_daq_pkt_msg(DAQ_Msg_h msg, bool retry)
     ASAN_POISON_MEMORY_REGION(data_end, size);
 #endif
 
+    /* Q: rebasing pointer in Packet to point to DAQ messages */
     PacketManager::decode(p, pkthdr, data, data_len, false, retry);
 
     /* Q: tell if a packet is done or not. If it is done, the switcher of analyzer will be stopped */
     /* Q: the biggest problem we have here is that, what will snort do if the packet still have some
      * remaining work? When will it turn to this packet again?
      */
-    if (process_packet_with_stack(p))
+    if (process_packet(p))
     {
         post_process_daq_pkt_msg(p);
-        switcher->stop();
+        /* This stop a context from the end, which would be disaterous if we don't follow the order */
+        /* TODO: correctly stop/abort all contexts upon batch finish */
+        // switcher->stop();
     }
 
 #if 0 // defined (__SANITIZE_ADDRESS__) && defined (REG_TEST)
@@ -532,6 +516,7 @@ bool Analyzer::inspect_rebuilt(Packet* p)
     return main_hook(p);
 }
 
+/* Q: this function is only called upon IP fragmented packets, not TCP-rebuilt ones */
 bool Analyzer::process_rebuilt_packet(Packet* p, const DAQ_PktHdr_t* pkthdr, const uint8_t* pkt,
     uint32_t pktlen)
 {
@@ -540,7 +525,7 @@ bool Analyzer::process_rebuilt_packet(Packet* p, const DAQ_PktHdr_t* pkthdr, con
     p->packet_flags |= (PKT_PSEUDO | PKT_REBUILT_FRAG);
     p->pseudo_type = PSEUDO_PKT_IP;
 
-    return process_packet_with_stack(p);
+    return process_packet(p);
 }
 
 void Analyzer::post_process_packet(Packet* p)
@@ -939,52 +924,48 @@ DAQ_RecvStatus Analyzer::process_messages()
     // Preemptively service available onloads to potentially unblock processing the first message.
     // This conveniently handles servicing offloads in the no messages received case as well.
     DetectionEngine::onload();
-
-    unsigned num_recv = 0;
-    DAQ_Msg_h msg;
-    /* Q: early return */
-    if (daq_instance->get_curr_batch_size() == 0)
-        goto finish;
     /* Q: initialize private stack information with batch just received */
     reserve_stacks(daq_instance->get_curr_batch_size());
-    /* Q: original implementation: loop the buffer, consume a packet once at a time, until it is exhausted.
-       Reuse the upper half.
-     */
-    while ((msg = daq_instance->next_message()) != nullptr)
-    {
-        // Dispose of any messages to be skipped first.
-        if (skip_cnt > 0)
-        {
+    
+    /* globalized, non-optimizable previously stack variable */
+    static volatile DAQ_Msg_h msg;
+    static volatile unsigned num_recv = 0;
+    /* setting the main stack to 'just start of the loop' */
+    SaveStack(&DefaultStack);
+    asm volatile ("":::"memory");
+    while ((msg = daq_instance->next_message()) != nullptr) {
+        /* now move to private stack */
+        asm volatile(
+            "movq %0, %%rsp "
+            :
+            : "rm"(StackTops[ReservedStacks])
+            :
+        );
+        CurrStack = ReservedStacks++;
+        if (skip_cnt > 0) {
             Profile profile(daqPerfStats);
             daq_stats.skipped++;
             skip_cnt--;
             daq_instance->finalize_message(msg, DAQ_VERDICT_PASS);
             continue;
         }
-        // FIXIT-M reimplement fail-open capability?
         num_recv++;
-        // IMPORTANT: process_daq_msg() is responsible for finalizing the messages.
         process_daq_msg(msg, false);
+
+        DetectionEngine::onload();
+        process_retry_queue();
+        handle_uncompleted_commands();
+
+        /* Mark private stack as end and immediately yield, 
+         * such that private stack never touch code outside this loop.
+         */
+        stack_end();
+        stack_next();
+    }
+    while (!all_stacks_finished()) {
+        stack_switch(-1, 0);
     }
 
-    stack_switch(-1, 0);
-    
-    /* Q: current implementation: re-loop the buffer, process each packet many times, until we are satisfied */
-    while (!all_stacks_finished()) {
-        if (daq_instance->get_curr_batch_size() == 0)
-            break;
-        msg = daq_instance->next_message_loop();
-        /* Q: note that in the original semantics, these functions will only be called every time a packet is processed
-        *  so before calling them, we have to make sure: is the current packet finished?
-        */
-        if (!stack_finished(daq_instance->get_curr_pkt_idx())) {
-            DetectionEngine::onload();
-            process_retry_queue();
-            handle_uncompleted_commands();
-        }
-    }
-    
-finish:
     if (exit_after_cnt && (exit_after_cnt -= num_recv) == 0)
         stop();
     if (pause_after_cnt && (pause_after_cnt -= num_recv) == 0)
