@@ -268,6 +268,14 @@ public:
     ContextData(int) { }
 };
 
+/* Q: the unit tests below serves as a very good material for understanding
+ * how interrupt/complete works.
+ * During processing of a packet, if there is another job,
+ * it would call interrupt to create (of course, get from a pool) a new context,
+ * which can also be interrupt, and complete always removes the last from
+ * the busy list 
+ */
+
 TEST_CASE("ContextSwitcher single wire", "[ContextSwitcher]")
 {
     const unsigned max = 10;
