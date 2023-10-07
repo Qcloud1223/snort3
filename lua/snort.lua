@@ -285,6 +285,6 @@ trace.modules = {
         all = 1
     },
     detection = {
-        all = 1
+        detect_engine = 1
     }
 }
