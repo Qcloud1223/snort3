@@ -1,6 +1,8 @@
 import tqdm
 from typing import Tuple, List
 import copy
+# highlight high figures
+from termcolor import colored
 
 trace_name = "trace_insn-3f2.txt"
 
@@ -125,13 +127,16 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
             # if func_name == func_to_measure and return_from_function(insn):
             if return_from_function(insn, func_name, func_to_measure):
                 # only print if we have no sub functions to trace
-                print("Number of cachelines of function " + func_to_measure + "#" + str(curr_num) + ": " + str(len(cache)) )
+                print("Number of cachelines of function " + func_to_measure + "#" + str(curr_num) + ": ", end="") 
+                print(colored(str(len(cache)), 'red') if len(cache) > 512 else str(len(cache)))
                 if len(sub_func_to_measure) != 0:
                     total = 0
                     for fn in sub_func_to_measure:
                         # some function we are interested in might not present
                         try:
-                            print(f"\t{fn}: {breakdown[fn]} ({float(breakdown[fn]) / len(cache):.1%})", end="")
+                            print(f"\t{fn}:", end="")
+                            print(colored(str(breakdown[fn]), 'red') if breakdown[fn] > 512 else str(breakdown[fn]), end="")
+                            print(f"({float(breakdown[fn]) / len(cache):.1%})", end="")
                             total += float(breakdown[fn]) / len(cache)
                         except KeyError:
                             pass
@@ -161,7 +166,14 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
 # top level breakdown: internal execute has at least 50% of the instructions
 # measure_function("process_packet", ["snort::InspectorManager::internal_execute<false>", "snort::DetectionEngine::detect", "snort::DetectionEngine::finish_inspect_with_latency", "snort::DetectionEngine::finish_inspect"])
 # internal_execute breakdown: one packet does not call this function exactly once
-measure_function("snort::InspectorManager::internal_execute<false>", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
+# measure_function("snort::InspectorManager::internal_execute<false>", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
+# measure_function("TcpSession::process", ["TcpStateMachine::eval", "TcpSession::check_events_and_actions", "S5TraceTCP"])
+# measure_function("TcpStateMachine::eval", ["TcpStreamTracker::set_tcp_event", "TcpSession::validate_packet_established_session", "TcpStateCloseWait::data_seg_sent", "TcpStateFinWait1::ack_recv" ])
+# measure_function("TcpStateMachine::eval", ["TcpReassembler::flush_on_ack_policy"])
+# measure_function("TcpStateCloseWait::data_seg_sent", ["TcpReassembler::flush_on_ack_policy"])
+# measure_function("TcpStateMachine::eval", ["TcpReassembler::scan_data_post_ack", "TcpReassembler::flush_to_seq", "TcpReassembler::purge_to_seq"])
+# measure_function("TcpStateMachine::eval", ["TcpReassembler::flush_data_segments", "Analyzer::inspect_rebuilt"])
+measure_function("process_packet", ["HttpInspect::eval"])
 
 # num_lines = sum(1 for _ in open(trace_name, "r"))
 
