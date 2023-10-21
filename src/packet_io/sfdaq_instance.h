@@ -61,6 +61,11 @@ public:
     {
         return daq_msgs[curr_batch_idx++ % curr_batch_size];
     }
+    /* Q: reset index */
+    void reset_batch_idx()
+    {
+        curr_batch_idx = 0;
+    }
     int finalize_message(DAQ_Msg_h msg, DAQ_Verdict verdict);
     const char* get_error();
 

@@ -46,6 +46,18 @@ void stack_switch(int from, int to)
     StackSwitchAsm(fromStack, toStack);
 }
 
+/* find pending stack starting from the next, disabling jumping to itself when possible */
+static int get_unfinished_stack(int curr)
+{
+    assert(curr >= 0);
+    for (auto i = 0; i < ReservedStacks; i++) {
+        auto real_idx = ((curr + 1) + i) % ReservedStacks;
+        if ((finished_vector & ((uint64_t)1 << real_idx)) == (uint64_t)0)
+            return real_idx;
+    }
+    return -1;
+}
+
 /* Get the next stack with policy.
  * TODO: actually make the policy in user's code, by allowing defining a 
  * function to make the decision, based on the context
@@ -55,18 +67,24 @@ void stack_next()
 {
     /* if we reach the first private stack again, all the stacks are initialized */
     /* WARNING: this is still packet-based, not context-based! */
-    if (ReservedStacks != 1 && CurrStack == 0)
+    if (ReservedStacks == NumStacks)
         all_stacks_initialized = true;
     /* first, create all the stacks by naively going back to main */
     if (all_stacks_initialized == false) {
         CurrStack++;
+#ifndef NDEBUG
         fprintf(stderr, "[Init] Switching from %d to %d\n", CurrStack - 1, -1);
+#endif
         stack_switch(CurrStack - 1, -1);
     }
     /* next, finish any unfinished stack */
-    int to = get_unfinished_stack();
-    fprintf(stderr, "[Fin] Switching from %d to %d\n", CurrStack, to);
-    stack_switch(CurrStack, to);
+    else {
+        int to = get_unfinished_stack(CurrStack);
+#ifndef NDEBUG
+        fprintf(stderr, "[Fin] Switching from %d to %d\n", CurrStack, to);
+#endif
+        stack_switch(CurrStack, to);
+    }
 }
 
 /* Mark a stack as end.
@@ -74,7 +92,9 @@ void stack_next()
  */
 void stack_end()
 {
+#ifndef NDEBUG
     fprintf(stderr, "Ending stack #%d\n", CurrStack);
+#endif
     assert(CurrStack >= 0);
     finished_vector |= ((uint64_t)1 << CurrStack);
 }
@@ -83,7 +103,9 @@ bool all_stacks_finished()
 {
     /* Note that we cannot shift 64 bits */
     uint64_t fin_vec = (ReservedStacks == 0) ? 0 : ~(uint64_t)0 >> (64 - ReservedStacks);
+#ifndef NDEBUG
     fprintf(stderr, "fin_vec: %lx, finish_vector: %lx\n", fin_vec, finished_vector);
+#endif
     return (finished_vector == fin_vec);
 }
 

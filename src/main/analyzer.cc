@@ -904,6 +904,8 @@ void Analyzer::handle_uncompleted_commands()
     }
 }
 
+static volatile unsigned num_recv = 0;
+
 /* Q: main processing loop of the worker */
 DAQ_RecvStatus Analyzer::process_messages()
 {
@@ -929,7 +931,7 @@ DAQ_RecvStatus Analyzer::process_messages()
     
     /* globalized, non-optimizable previously stack variable */
     static volatile DAQ_Msg_h msg;
-    static volatile unsigned num_recv = 0;
+    num_recv = 0;
     /* setting the main stack to 'just start of the loop' */
     SaveStack(&DefaultStack);
     asm volatile ("":::"memory");
@@ -964,6 +966,12 @@ DAQ_RecvStatus Analyzer::process_messages()
     }
     while (!all_stacks_finished()) {
         stack_switch(-1, 0);
+    }
+
+    /* batch destory of contexts */
+    daq_instance->reset_batch_idx();
+    while((msg = daq_instance->next_message()) != nullptr) {
+        switcher->stop();
     }
 
     if (exit_after_cnt && (exit_after_cnt -= num_recv) == 0)

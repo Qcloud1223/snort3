@@ -2089,14 +2089,20 @@ void InspectorManager::bumble(Packet* p)
         flow->session->restart(p);
 }
 
+#include "main/private_stack.h"
+
 template<bool T>
 void inline InspectorManager::full_inspection(Packet* p)
 {
     Flow* flow = p->flow;
 
     if ( flow->service and flow->searching_for_service()
-         and (!(p->is_cooked()) or p->is_defrag()) )
+         and (!(p->is_cooked()) or p->is_defrag()) ) 
+    {
+        /* long http inspection, jump here */
+        stack_next();
         bumble(p);
+    }
 
     // For reassembled PDUs, a null data buffer signals no detection. Detection can be required
     // with a length of 0. For raw packets, a length of 0 does signal no detection.

@@ -645,7 +645,6 @@ bool DetectionEngine::inspect(Packet* p)
         {
             enable_content(p);
             /* FIXME: temporary bypass */
-            stack_next();
 
             InspectorManager::execute(p);
             inspected = true;
