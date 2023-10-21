@@ -4,7 +4,7 @@ import copy
 # highlight high figures
 from termcolor import colored
 
-trace_name = "trace_insn-3f2.txt"
+trace_name = "trace_insn-isolated.txt"
 
 def ignore_function(func : str, ignore: list) -> bool:
     # ignore_list = [
@@ -84,7 +84,8 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
         curr_num = 0
         curr_idx = -1
         curr_line = 0
-        for line in tqdm.tqdm(f, total=num_lines):
+        # for line in tqdm.tqdm(f, total=num_lines):
+        for line in f: 
             curr_line += 1
             addr, func_name_raw, insn = parse_line(line)
             func_name = func_name_raw.split('+')[0]
@@ -173,7 +174,7 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
 # measure_function("TcpStateCloseWait::data_seg_sent", ["TcpReassembler::flush_on_ack_policy"])
 # measure_function("TcpStateMachine::eval", ["TcpReassembler::scan_data_post_ack", "TcpReassembler::flush_to_seq", "TcpReassembler::purge_to_seq"])
 # measure_function("TcpStateMachine::eval", ["TcpReassembler::flush_data_segments", "Analyzer::inspect_rebuilt"])
-measure_function("process_packet", ["HttpInspect::eval"])
+measure_function("process_packet", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
 
 # num_lines = sum(1 for _ in open(trace_name, "r"))
 
