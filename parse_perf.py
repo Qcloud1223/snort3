@@ -4,7 +4,7 @@ import copy
 # highlight high figures
 from termcolor import colored
 
-trace_name = "trace_insn-isolated.txt"
+trace_name = "/home/iom/snort3-vanilla/trace_insn-isolated-request.txt"
 
 def ignore_function(func : str, ignore: list) -> bool:
     # ignore_list = [
@@ -55,6 +55,8 @@ def return_from_function(insn : list, func_name : str, func_to_check : str) -> b
         return True
     if func_name == 'TcpSession::restart' and func_to_check == 'snort::InspectorManager::bumble':
         return True 
+    if func_name == 'Binder::handle_flow_service_change' and func_to_check == 'FlowServiceChangeHandler::handle':
+        return True
     # if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '25' and insn[2] == '52' and insn[3] == '0b' and insn[4] == '00' and func_name == 'snort::DetectionEngine::finish_inspect_with_latency':
     #     return True
     # if len(insn) == 5 and insn[0] == 'e9' and insn[1] == '6e' and insn[2] == 'fd' and insn[3] == 'ff' and insn[4] == 'ff' and func_name == 'snort::DetectionEngine::detect':
@@ -175,6 +177,9 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
 # measure_function("TcpStateMachine::eval", ["TcpReassembler::scan_data_post_ack", "TcpReassembler::flush_to_seq", "TcpReassembler::purge_to_seq"])
 # measure_function("TcpStateMachine::eval", ["TcpReassembler::flush_data_segments", "Analyzer::inspect_rebuilt"])
 measure_function("process_packet", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
+# measure_function("process_packet", ["TcpReassembler::scan_data_post_ack", "TcpReassembler::initialize_pdu", "TcpReassembler::flush_data_segments", "HttpInspect::eval"])
+# measure_function("Analyzer::inspect_rebuilt", ["HttpInspect::eval"])
+# measure_function("process_packet", ["Analyzer::inspect_rebuilt"])
 
 # num_lines = sum(1 for _ in open(trace_name, "r"))
 
