@@ -2098,11 +2098,7 @@ void inline InspectorManager::full_inspection(Packet* p)
 
     if ( flow->service and flow->searching_for_service()
          and (!(p->is_cooked()) or p->is_defrag()) ) 
-    {
-        /* long http inspection, jump here */
-        stack_next();
         bumble(p);
-    }
 
     // For reassembled PDUs, a null data buffer signals no detection. Detection can be required
     // with a length of 0. For raw packets, a length of 0 does signal no detection.
@@ -2211,7 +2207,10 @@ inline void InspectorManager::internal_execute(Packet* p)
             Flow& flow = *p->flow;
             flow.session->process(p);
         }
-
+        /* Q: end of TCP processing */
+        /* make rebuilt packet run uninterrupted, since it's context is in strict FIFO way */
+        if (!p->is_rebuilt())
+            stack_next();
         if ( p->flow->reload_id != reload_id )
         {
             ::execute<T>(p, tp->first.vec, tp->first.num);

@@ -962,6 +962,7 @@ DAQ_RecvStatus Analyzer::process_messages()
          * such that private stack never touch code outside this loop.
          */
         stack_end();
+        stack_unlock();
         stack_next();
     }
     while (!all_stacks_finished()) {

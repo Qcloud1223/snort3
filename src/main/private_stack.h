@@ -27,6 +27,8 @@ void stack_switch(int from, int to);
 void stack_next();
 void stack_back();
 void stack_end();
+void stack_lock();
+void stack_unlock();
 bool stack_finished(int idx);
 int get_unfinished_stack();
 bool all_stacks_finished();

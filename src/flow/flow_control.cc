@@ -381,6 +381,8 @@ static bool want_flow(PktType type, Packet* p)
     return false;
 }
 
+#include "main/private_stack.h"
+
 bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
 {
     if ( !get_proto_session[to_utype(type)] )
@@ -390,8 +392,14 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
     set_key(&key, p);
     Flow* flow = cache->find(&key);
 
-    if (flow)
+    /* Q: temporarily make the long path stall */
+    if (flow) {
         flow = stale_flow_cleanup(cache, flow, p);
+        if (!p->is_rebuilt()) {
+            stack_lock();
+            stack_next();
+        }
+    }
 
     if ( !flow )
     {

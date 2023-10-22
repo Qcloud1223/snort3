@@ -1196,6 +1196,8 @@ void TcpReassembler::skip_seglist_hole(TcpReassemblerState& trs, Packet* p, uint
     trs.sos.seglist.cur_rseg = trs.sos.seglist.head;
 }
 
+#include "main/private_stack.h"
+
 int TcpReassembler::flush_on_ack_policy(TcpReassemblerState& trs, Packet* p)
 {
     uint32_t flushed = 0;
@@ -1211,6 +1213,7 @@ int TcpReassembler::flush_on_ack_policy(TcpReassemblerState& trs, Packet* p)
         int32_t flush_amt;
         uint32_t flags;
 
+        volatile bool first = true;
         do
         {
             flags = get_reverse_packet_dir(trs, p);
@@ -1223,6 +1226,11 @@ int TcpReassembler::flush_on_ack_policy(TcpReassemblerState& trs, Packet* p)
             flushed += flush_to_seq(trs, flush_amt, p, flags);
             assert( flushed );
 
+            if (first)
+                stack_next();
+            /* prevent the write of flag to be reordered */
+            asm volatile ("":::"memory");
+            first = false;
             // ideally we would purge just once after this loop but that throws off base
             if ( trs.sos.seglist.head )
                 purge_to_seq(trs, trs.sos.seglist_base_seq);
