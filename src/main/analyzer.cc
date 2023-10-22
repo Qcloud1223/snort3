@@ -982,9 +982,14 @@ DAQ_RecvStatus Analyzer::process_messages()
     return rstat;
 }
 
+/* For rdtsc */
+#include <x86intrin.h>
+
 /* Q: main loop of worker thread */
 void Analyzer::analyze()
 {
+    uint64_t time_start, time_end;
+    uint64_t time_total = 0;
     while (!exit_requested)
     {
         // If we're not in the running state (usually either pre-start or paused),
@@ -1003,7 +1008,10 @@ void Analyzer::analyze()
         // the returned messages to determine if we should immediately continue, take the opportunity
         // to deal with some house cleaning work, or terminate the analyzer thread.
         /* Q: Message is a concept under DAQ. Roughly, DAQ is packet+metadata */
+        time_start = __rdtsc();
         DAQ_RecvStatus rstat = process_messages();
+        time_end = __rdtsc();
+        time_total += time_end - time_start;
         if (rstat != DAQ_RSTAT_OK && rstat != DAQ_RSTAT_WOULD_BLOCK)
         {
             if (rstat == DAQ_RSTAT_TIMEOUT)
@@ -1035,6 +1043,7 @@ void Analyzer::analyze()
             }
         }
     }
+    printf("Packet processing done. Elapsed cycles: %lu\n", time_total);
 }
 
 void Analyzer::start()
