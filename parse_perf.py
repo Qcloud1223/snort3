@@ -4,7 +4,7 @@ import copy
 # highlight high figures
 from termcolor import colored
 
-trace_name = "/home/iom/snort3-vanilla/trace_insn-isolated-request.txt"
+trace_name = "/home/iom/snort3-vanilla/logs/trace_insn-isolated-request.txt"
 
 def ignore_function(func : str, ignore: list) -> bool:
     # ignore_list = [
@@ -35,6 +35,13 @@ def populate_in_cache(addr : int, cache : dict) -> bool:
         _ = cache[addr >> 6]
     except KeyError:
         cache[addr >> 6] = 1
+        return False
+    else:
+        return True
+
+def populate_in_inst_dict(addr : int, inst_dict: dict) -> bool:
+    if addr not in inst_dict:
+        inst_dict[addr] = 1
         return False
     else:
         return True
@@ -80,6 +87,9 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
     recur_stack = []
     # deepest layer
     deepest_call = 0
+    # monitoring instruction count
+    inst_dict = {}
+    inst_breakdown = {}
 
     with open(trace_name, "r") as f:
         start = False
@@ -107,6 +117,7 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
             if ignore_function(func_name, ["malloc", "_int_free", "_int_malloc", "sysmalloc"]):
                 continue
             ret = populate_in_cache(addr, cache)
+            insn_ret = populate_in_inst_dict(addr, inst_dict)
             # this cacheline is caused by function we are interested in,
             # start tracing one of the functions
             # WARNING: the user is responsible to check those functions does not overlap
@@ -121,6 +132,11 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
                         breakdown[sub_func_to_measure[curr_idx]] += 1
                     except KeyError:
                         breakdown[sub_func_to_measure[curr_idx]] = 1
+                if insn_ret == False and curr_idx >= 0:
+                    try:
+                        inst_breakdown[sub_func_to_measure[curr_idx]] += 1
+                    except KeyError:
+                        inst_breakdown[sub_func_to_measure[curr_idx]] = 1
                 # reset
                 # if func_name == sub_func_to_measure[curr_idx] and return_from_function(insn):
                 if return_from_function(insn, func_name, sub_func_to_measure[curr_idx]):
@@ -141,6 +157,10 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
                             print(colored(str(breakdown[fn]), 'red') if breakdown[fn] > 512 else str(breakdown[fn]), end="")
                             print(f"({float(breakdown[fn]) / len(cache):.1%})", end="")
                             total += float(breakdown[fn]) / len(cache)
+                            # print instruction count, highlight when it's exceeding DSB
+                            print("(", end="")
+                            print(colored(str(inst_breakdown[fn]), 'red') if inst_breakdown[fn] > 1500 else str(inst_breakdown[fn]), end="")
+                            print(")", end="")
                         except KeyError:
                             pass
                     print(f"\t-> coverage: {total:.1%}")
@@ -156,6 +176,8 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
                     # TODO: we might be interested in the union of all packets
                     cache.clear()
                     breakdown.clear()
+                    inst_dict.clear()
+                    inst_breakdown.clear()
                 # return
 
 # measure_function("StreamBase::eval")
