@@ -392,14 +392,8 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
     set_key(&key, p);
     Flow* flow = cache->find(&key);
 
-    /* Q: temporarily make the long path stall */
-    if (flow) {
+    if (flow)
         flow = stale_flow_cleanup(cache, flow, p);
-        if (!p->is_rebuilt()) {
-            stack_lock();
-            stack_next();
-        }
-    }
 
     if ( !flow )
     {

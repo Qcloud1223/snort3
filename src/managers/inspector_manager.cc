@@ -2208,9 +2208,7 @@ inline void InspectorManager::internal_execute(Packet* p)
             flow.session->process(p);
         }
         /* Q: end of TCP processing */
-        /* make rebuilt packet run uninterrupted, since it's context is in strict FIFO way */
-        if (!p->is_rebuilt())
-            stack_next();
+        stack_next();
         if ( p->flow->reload_id != reload_id )
         {
             ::execute<T>(p, tp->first.vec, tp->first.num);
