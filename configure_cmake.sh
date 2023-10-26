@@ -186,6 +186,12 @@ while [ $# -ne 0 ]; do
         --disable-code-coverage)
             append_cache_entry ENABLE_CODE_COVERAGE     BOOL false
             ;;
+        --enable-correctness)
+            append_cache_entry ENABLE_CORRECTNESS       BOOL true
+            ;;
+        --disable-correctness)
+            append_cache_entry ENABLE_CORRECTNESS       BOOL false
+            ;;
         --enable-hardened-build)
             append_cache_entry ENABLE_HARDENED_BUILD    BOOL true
             ;;
