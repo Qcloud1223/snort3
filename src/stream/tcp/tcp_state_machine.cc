@@ -91,6 +91,8 @@ void TcpStateMachine::register_state_handler(TcpStreamTracker::TcpState state,
     tcp_state_handlers[ state ] = &handler;
 }
 
+#include "main/private_stack.h"
+
 bool TcpStateMachine::eval(TcpSegmentDescriptor& tsd)
 {
     TcpStreamTracker* talker = tsd.get_talker();
@@ -101,6 +103,8 @@ bool TcpStateMachine::eval(TcpSegmentDescriptor& tsd)
     {
         if ( tcp_state_handlers[ talker_state ]->eval(tsd, *talker) )
         {
+            /* schedule when TCP talker is done, but not listener */
+            stack_next();
             TcpStreamTracker* listener = tsd.get_listener();
             const TcpStreamTracker::TcpState listener_state = listener->get_tcp_state( );
             listener->set_tcp_event(tsd);

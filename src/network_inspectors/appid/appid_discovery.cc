@@ -129,6 +129,8 @@ int AppIdDiscovery::add_service_port(AppIdDetector*, const ServiceDetectorPort&)
     return APPID_EINVALID;
 }
 
+#include "main/private_stack.h"
+
 void AppIdDiscovery::do_application_discovery(Packet* p, AppIdInspector& inspector,
     OdpContext& odp_ctxt, ThirdPartyAppIdContext* tp_appid_ctxt)
 {
@@ -140,6 +142,8 @@ void AppIdDiscovery::do_application_discovery(Packet* p, AppIdInspector& inspect
     if (!do_pre_discovery(p, asd, inspector, protocol, outer_protocol, direction, odp_ctxt))
         return;
 
+    stack_next();
+    
     AppId service_id = APP_ID_NONE;
     AppId client_id = APP_ID_NONE;
     AppId payload_id = APP_ID_NONE;

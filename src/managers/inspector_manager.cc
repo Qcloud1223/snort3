@@ -2147,8 +2147,11 @@ inline void InspectorManager::internal_execute(Packet* p)
     if ( !p->has_paf_payload() )
     {
         SingleInstanceInspectorPolicy* ft = sc->policy_map->get_flow_tracking();
-        if (ft->instance )
+        /* stream */
+        if (ft->instance ) {
             ::execute<T>(p, &ft->instance, 1);
+            stack_next();
+        }
     }
 
     // must check between each ::execute()
@@ -2167,6 +2170,7 @@ inline void InspectorManager::internal_execute(Packet* p)
     FrameworkPolicy* fp = get_inspection_policy()->framework_policy;
     assert(fp);
 
+    /* normalizer */
     if ( !p->is_cooked() )
         ::execute<T>(p, fp->packet.vec, fp->packet.num);
 
@@ -2202,12 +2206,12 @@ inline void InspectorManager::internal_execute(Packet* p)
     }
     else
     {
+        /* TCP processing */
         if ( !p->has_paf_payload() and p->flow->flow_state == Flow::FlowState::INSPECT )
         {
             Flow& flow = *p->flow;
             flow.session->process(p);
         }
-        /* Q: end of TCP processing */
         stack_next();
         if ( p->flow->reload_id != reload_id )
         {
@@ -2218,6 +2222,7 @@ inline void InspectorManager::internal_execute(Packet* p)
                 return;
         }
 
+        /* arp_spoof, back_orifice */
         if ( !p->flow->service )
             ::execute<T>(p, fp->network.vec, fp->network.num);
 
@@ -2227,6 +2232,7 @@ inline void InspectorManager::internal_execute(Packet* p)
         if ( p->flow->full_inspection() )
             full_inspection<T>(p);
 
+        /* appid */
         if ( !p->disable_inspect and !p->flow->is_inspection_disabled() )
             ::execute<T>(p, pp->control.vec, pp->control.num);
         if ( !p->disable_inspect and !p->flow->is_inspection_disabled() )

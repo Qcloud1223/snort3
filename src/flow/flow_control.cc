@@ -421,6 +421,7 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
         flow->session = get_proto_session[to_utype(type)](flow);
     }
 
+    stack_next();
     num_flows += process(flow, p);
 
     // FIXIT-M refactor to unlink_uni immediately after session
