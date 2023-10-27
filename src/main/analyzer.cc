@@ -945,12 +945,56 @@ DAQ_RecvStatus Analyzer::process_messages()
 
 /* For rdtsc */
 #include <x86intrin.h>
+/* For perf_event_open */
+#include <linux/perf_event.h>
+#include <sys/ioctl.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+
+static int enable_instruction_count()
+{
+    int fd;
+    struct perf_event_attr pe;
+    
+    memset(&pe, 0, sizeof(pe));
+    pe.type = PERF_TYPE_HARDWARE;
+    pe.size = sizeof(pe);
+    pe.config = PERF_COUNT_HW_INSTRUCTIONS;
+    pe.disabled = 1;
+    pe.exclude_kernel = 1;
+    pe.exclude_hv = 1;
+    pe.exclude_idle = 1;
+
+    fd = syscall(SYS_perf_event_open, &pe, 0, -1, -1, 0);
+    if (fd == -1) {
+        fprintf(stderr, "Error in preparing perf\n");
+        exit(EXIT_FAILURE);
+    }
+    
+    ioctl(fd, PERF_EVENT_IOC_RESET, 0);
+    ioctl(fd, PERF_EVENT_IOC_ENABLE, 0);
+
+    return fd;
+}
+
+static uint64_t disable_instruction_count(int fd)
+{
+    uint64_t count;
+    ioctl(fd, PERF_EVENT_IOC_DISABLE, 0);
+
+    read(fd, &count, sizeof(count));
+    return count;
+}
 
 /* Q: main loop of worker thread */
 void Analyzer::analyze()
 {
     uint64_t time_start, time_end;
     uint64_t time_total = 0;
+#ifdef CORRECTNESS
+    int fd;
+    fd = enable_instruction_count();
+#endif
     while (!exit_requested)
     {
         // If we're not in the running state (usually either pre-start or paused),
@@ -971,7 +1015,7 @@ void Analyzer::analyze()
         /* Q: Message is a concept under DAQ. Roughly, DAQ is packet+metadata */
         time_start = __rdtsc();
         DAQ_RecvStatus rstat = process_messages();
-        time_end = __rdtsc();
+        time_end   = __rdtsc();
         time_total += time_end - time_start;
         if (rstat != DAQ_RSTAT_OK && rstat != DAQ_RSTAT_WOULD_BLOCK)
         {
@@ -1004,6 +1048,11 @@ void Analyzer::analyze()
             }
         }
     }
+#ifdef CORRECTNESS
+    uint64_t count;
+    count = disable_instruction_count(fd);
+    printf("Counting instructions done, total: %lu\n", count);
+#endif
     printf("Packet processing done. Elapsed cycles: %lu\n", time_total);
 }
 

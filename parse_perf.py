@@ -2,7 +2,7 @@ import tqdm
 from typing import Tuple, List
 import copy
 
-trace_name = "trace_insn-3f2.txt"
+trace_name = "trace_insn-isolated.txt"
 
 def ignore_function(func : str, ignore: list) -> bool:
     # ignore_list = [
@@ -161,7 +161,8 @@ def measure_function(func_to_measure : str, sub_func_to_measure : list = []):
 # top level breakdown: internal execute has at least 50% of the instructions
 # measure_function("process_packet", ["snort::InspectorManager::internal_execute<false>", "snort::DetectionEngine::detect", "snort::DetectionEngine::finish_inspect_with_latency", "snort::DetectionEngine::finish_inspect"])
 # internal_execute breakdown: one packet does not call this function exactly once
-measure_function("snort::InspectorManager::internal_execute<false>", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
+# measure_function("snort::InspectorManager::internal_execute<false>", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
+measure_function("process_packet", ["StreamBase::eval", "Normalizer::eval", "TcpSession::process", "AppIdInspector::eval", "HttpInspect::eval", "snort::InspectorManager::bumble"])
 
 # num_lines = sum(1 for _ in open(trace_name, "r"))
 

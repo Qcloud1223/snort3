@@ -50,6 +50,7 @@ option ( ENABLE_UB_SANITIZER "enable undefined behavior sanitizer support" OFF )
 option ( ENABLE_TCMALLOC "enable using tcmalloc for dynamic memory management" OFF )
 option ( ENABLE_JEMALLOC "enable using jemalloc for dynamic memory management" OFF )
 option ( ENABLE_CODE_COVERAGE "Whether to enable code coverage support" OFF )
+option ( ENABLE_CORRECTNESS "Enable correctness verification on pipelined code" OFF)
 
 # signals
 set (
