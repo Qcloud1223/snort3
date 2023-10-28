@@ -817,6 +817,7 @@ void Analyzer::operator()(Swapper* ps, uint16_t run_num)
     }
 
     Profiler::stop(pc.analyzed_pkts);
+    printf("Time recorded by profiler: %lu\n", totalPerfStats.time.elapsed.count()); 
     term();
 
     set_state(State::STOPPED);
