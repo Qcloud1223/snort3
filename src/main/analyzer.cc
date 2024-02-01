@@ -77,6 +77,9 @@
 #include "snort_config.h"
 #include "thread_config.h"
 
+/* manual insertion helper header */
+#include "sp_manual.h"
+
 using namespace snort;
 using namespace std;
 
@@ -193,6 +196,7 @@ static void process_daq_sof_eof_msg(DAQ_Msg_h msg, DAQ_Verdict& verdict)
 
 static bool process_packet(Packet* p)
 {
+    yieldControlFirst();
     assert(p->pkth && p->pkt);
 
     daq_stats.rx_bytes += p->pktlen;
@@ -795,6 +799,7 @@ void Analyzer::operator()(Swapper* ps, uint16_t run_num)
     /* Q: now start processing packets normally */
     Profiler::start();
 
+    topLevelInit("/home/iom/tst-parse-llvm-ir/large-tests/snort/bitcode-txt/snort.pre.bc-sp.txt", "/home/iom/tst-parse-llvm-ir/large-tests/snort/bitcode-txt/snort-analysis-accesslist.txt");
     // Start the main loop
     analyze();
 
@@ -893,6 +898,9 @@ void Analyzer::handle_uncompleted_commands()
     }
 }
 
+static volatile unsigned num_recv;
+Analyzer *glbAnalyzerThis;
+
 /* Q: main processing loop of the worker */
 DAQ_RecvStatus Analyzer::process_messages()
 {
@@ -914,10 +922,13 @@ DAQ_RecvStatus Analyzer::process_messages()
     // This conveniently handles servicing offloads in the no messages received case as well.
     DetectionEngine::onload();
 
-    unsigned num_recv = 0;
-    DAQ_Msg_h msg;
+    num_recv = 0;
+    batchInit();
+    static volatile DAQ_Msg_h msg;
+    glbAnalyzerThis = this;
     while ((msg = daq_instance->next_message()) != nullptr)
     {
+        pktInit();
         // Dispose of any messages to be skipped first.
         if (skip_cnt > 0)
         {
@@ -930,10 +941,11 @@ DAQ_RecvStatus Analyzer::process_messages()
         // FIXIT-M reimplement fail-open capability?
         num_recv++;
         // IMPORTANT: process_daq_msg() is responsible for finalizing the messages.
-        process_daq_msg(msg, false);
+        glbAnalyzerThis->process_daq_msg(msg, false);
         DetectionEngine::onload();
-        process_retry_queue();
+        glbAnalyzerThis->process_retry_queue();
         handle_uncompleted_commands();
+        yieldControlLast();
     }
 
     if (exit_after_cnt && (exit_after_cnt -= num_recv) == 0)
