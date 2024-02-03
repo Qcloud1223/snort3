@@ -921,6 +921,7 @@ DAQ_RecvStatus Analyzer::process_messages()
     // Preemptively service available onloads to potentially unblock processing the first message.
     // This conveniently handles servicing offloads in the no messages received case as well.
     DetectionEngine::onload();
+    reserve_stacks(daq_instance->get_curr_batch_size());
 
     num_recv = 0;
     batchInit();

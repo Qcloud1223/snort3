@@ -6,6 +6,7 @@
 void topLevelInit(std::string spFilename, std::string rwFilename);
 void yieldControlFirst();
 void yieldControlLast();
+void reserve_stacks(unsigned batchSize);
 
 #define batchInit() \
     bootstrapSPQueue();\
