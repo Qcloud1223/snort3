@@ -2150,7 +2150,7 @@ inline void InspectorManager::internal_execute(Packet* p)
         /* stream */
         if (ft->instance ) {
             ::execute<T>(p, &ft->instance, 1);
-            stack_next();
+            // stack_next();
         }
     }
 
@@ -2212,7 +2212,7 @@ inline void InspectorManager::internal_execute(Packet* p)
             Flow& flow = *p->flow;
             flow.session->process(p);
         }
-        stack_next();
+        // stack_next();
         if ( p->flow->reload_id != reload_id )
         {
             ::execute<T>(p, tp->first.vec, tp->first.num);

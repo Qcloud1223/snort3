@@ -104,7 +104,7 @@ bool TcpStateMachine::eval(TcpSegmentDescriptor& tsd)
         if ( tcp_state_handlers[ talker_state ]->eval(tsd, *talker) )
         {
             /* schedule when TCP talker is done, but not listener */
-            stack_next();
+            // stack_next();
             TcpStreamTracker* listener = tsd.get_listener();
             const TcpStreamTracker::TcpState listener_state = listener->get_tcp_state( );
             listener->set_tcp_event(tsd);

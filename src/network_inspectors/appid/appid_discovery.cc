@@ -142,7 +142,7 @@ void AppIdDiscovery::do_application_discovery(Packet* p, AppIdInspector& inspect
     if (!do_pre_discovery(p, asd, inspector, protocol, outer_protocol, direction, odp_ctxt))
         return;
 
-    stack_next();
+    // stack_next();
     
     AppId service_id = APP_ID_NONE;
     AppId client_id = APP_ID_NONE;
