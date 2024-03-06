@@ -2209,6 +2209,10 @@ inline void InspectorManager::internal_execute(Packet* p)
     }
     else
     {
+        /* when the first packet ever hits flow processing,
+         * we can make sure all flows are initialized
+         */
+        all_flows_initialized = true;
         /* TCP processing */
         if ( !p->has_paf_payload() and p->flow->flow_state == Flow::FlowState::INSPECT )
         {

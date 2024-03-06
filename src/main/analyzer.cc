@@ -964,7 +964,12 @@ DAQ_RecvStatus Analyzer::process_messages()
          */
         stack_next_2();
     }
-    // fprintf(stderr, "Previous batch size: %u\n", num_recv);
+#ifdef DEBUG_MSGS
+    fprintf(stderr, "Previous batch size: %u, max batch size: %u\n", num_recv, max_recv);
+    if (daq_instance->get_pool_available() != 256) {
+        abort();
+    }
+#endif
 
     /* batch destory of contexts */
     daq_instance->reset_batch_idx();

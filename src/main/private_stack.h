@@ -22,6 +22,7 @@ extern RegSet DefaultStack;
 extern void *StackTops[MAX_STACK_NUM];
 extern int CurrStack;
 extern unsigned ReservedStacks;
+extern bool all_flows_initialized;
 /* TODO: previous-rip only solution */
 // extern void *redoAddr;
 

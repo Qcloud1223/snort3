@@ -1,7 +1,8 @@
 /* enable assertion in this TU only */
-// #undef NDEBUG
+#undef NDEBUG
 /* enable logs even if optimization is enabled */
 // #define DEBUG_MSGS
+// #undef DEBUG_MSGS
 #include <stdio.h>
 #include <stdint.h>
 #include <string.h>
@@ -48,7 +49,7 @@ static std::vector<int> redoQueue;
  * 1. the last packet ends
  * 2. the last packet finds its flow
  */
-static bool all_flows_initialized;
+bool all_flows_initialized;
 
 void init_stacks()
 {
@@ -68,14 +69,16 @@ void reserve_stacks(unsigned num)
     fprintf(stderr, "[Rev] Reserving %u stacks\n", num);
 #endif
     assert(num <= MAX_STACK_NUM);
+    /* packets from the last batch must all be freed */
+    // assert(available_vector == 0 || flowIdxCtr == 0);
     NumStacks = num;
     ReservedStacks = 0;
     flowIdxCtr = 0;
     available_vector = UINT64_MAX;
     all_flows_initialized = false;
     seenFlow.clear();
-    /* WARNING: dangerous */
-    redoQueue.clear();
+    /* redo queue must be flushed, otherwise, it's taking up buffer */
+    assert(redoQueue.empty());
     redoIdx = 0;
 }
 
@@ -99,8 +102,6 @@ void stack_end(uint64_t flow)
 #endif
     assert(CurrStack >= 0);
     available_vector &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - CurrStack));
-    if (CurrStack + 1 == NumStacks)
-        all_flows_initialized = true;
     /* if this packet is not associated with any flow, just return */
     if (!flow)
         return;
@@ -174,9 +175,16 @@ static inline int get_next_packet_2()
     /* if no flow pending and left, we are clear to go */
     if (seenFlow.empty()) {
 #ifdef DEBUG_MSGS
-    fprintf(stderr, "[type 2] Switching form #%d to #%d (empty flow)\n", CurrStack, -1);
+    fprintf(stderr, "[type 2] Switching from #%d to #%d (empty flow)\n", CurrStack, -1);
 #endif
         return -1;
+    }
+
+    if (unlikely(!redoQueue.empty())) {
+        int to = redoQueue[redoIdx++];
+        if (redoIdx == redoQueue.size())
+            redoQueue.clear();
+        return to;
     }
     
     /* else, RR all active flows to make PL */
@@ -250,8 +258,6 @@ void stack_next_2()
 /* note that we should also set persistent flow key upon flow start */
 void mark_flow_start(uint64_t flow)
 {
-    if (CurrStack + 1 == NumStacks)
-        all_flows_initialized = true;
     auto res = seenFlow.find(flow);
 
     /* TODO: this policy requires too many hash table lookup */
