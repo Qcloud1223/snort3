@@ -2144,6 +2144,9 @@ inline void InspectorManager::internal_execute(Packet* p)
     }
 
     const SnortConfig* sc = p->context->conf;
+    /* before get flow */
+    if (!p->is_rebuilt())
+        stack_next_0();
     if ( !p->has_paf_payload() )
     {
         SingleInstanceInspectorPolicy* ft = sc->policy_map->get_flow_tracking();
@@ -2212,7 +2215,8 @@ inline void InspectorManager::internal_execute(Packet* p)
             Flow& flow = *p->flow;
             flow.session->process(p);
         }
-        // stack_next();
+        if (!p->is_rebuilt())
+            stack_next_2();
         if ( p->flow->reload_id != reload_id )
         {
             ::execute<T>(p, tp->first.vec, tp->first.num);

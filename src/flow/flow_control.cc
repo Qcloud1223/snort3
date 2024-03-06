@@ -390,10 +390,16 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
 
     FlowKey key;
     set_key(&key, p);
-    Flow* flow = cache->find(&key);
+    SaveStack(&RestoreRegs[CurrStack]);
+    asm volatile ("":::"memory");
 
-    if (flow)
+    Flow* flow = cache->find(&key);
+    if (flow) {
+        if (!p->is_rebuilt())
+            mark_flow_start(reinterpret_cast<uint64_t>(flow));
         flow = stale_flow_cleanup(cache, flow, p);
+        p->flow_key = reinterpret_cast<uint64_t>(flow);
+    }
 
     if ( !flow )
     {
@@ -413,6 +419,9 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
             if ( new_flow )
                 *new_flow = true;
         }
+        if (!p->is_rebuilt())
+            mark_flow_start(reinterpret_cast<uint64_t>(flow));
+        p->flow_key = reinterpret_cast<uint64_t>(flow);
     }
 
     if ( !flow->session )

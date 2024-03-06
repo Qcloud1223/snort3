@@ -3,6 +3,9 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <stdint.h>
+#include <unordered_map>
+#include <vector>
 
 /* IMPORTANT: tell the compiler: don't mangle the following name for me */
 extern "C" { 
@@ -10,6 +13,7 @@ extern "C" {
 typedef void *RegSet[9];
 #define MAX_STACK_NUM 64
 #define MAX_STACK_SIZE ((1 << 23))
+extern RegSet RestoreRegs[MAX_STACK_NUM];
 static RegSet CalleeRegs[MAX_STACK_NUM];
 static unsigned NumStacks;
 
@@ -18,21 +22,24 @@ extern RegSet DefaultStack;
 extern void *StackTops[MAX_STACK_NUM];
 extern int CurrStack;
 extern unsigned ReservedStacks;
+/* TODO: previous-rip only solution */
+// extern void *redoAddr;
 
 /* public interfaces */
 void init_stacks();
 void reserve_stacks(unsigned num);
 // bool process_packet_with_stack(snort::Packet *p);
 void stack_switch(int from, int to);
-void stack_next();
-void stack_back();
-void stack_end();
-void stack_lock();
-void stack_unlock();
-bool stack_finished(int idx);
-int get_unfinished_stack();
-bool all_stacks_finished();
-extern bool priv_stk_ret;
+void stack_next_0();
+void stack_next_1();
+void stack_next_2();
+void stack_end(uint64_t flow);
+/* mark the lookup and remove of flow */
+void mark_flow_start(uint64_t flow);
+void mark_flow_end(uint64_t flow);
+void stack_save();
+/* inline to prevent multiple definition */
+// inline void set_redo_addr(void *addr) {redoAddr = addr;}
 
 /* asm interfaces */
 extern void StackSwitchAsm(RegSet *src, RegSet *dst);

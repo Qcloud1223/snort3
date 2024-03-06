@@ -179,12 +179,14 @@ Flow* FlowCache::allocate(const FlowKey* key)
     return flow;
 }
 
+#include "main/private_stack.h"
 void FlowCache::remove(Flow* flow)
 {
     unlink_uni(flow);
     const snort::FlowKey* key = flow->key;
     // Delete before releasing the node, so that the key is valid until the flow is completely freed
     delete flow;
+    mark_flow_end(reinterpret_cast<uint64_t>(flow));
     hash_table->release_node(key);
 }
 

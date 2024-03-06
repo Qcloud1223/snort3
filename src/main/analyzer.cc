@@ -191,6 +191,8 @@ static void process_daq_sof_eof_msg(DAQ_Msg_h msg, DAQ_Verdict& verdict)
     DataBus::publish(intrinsic_pub_id, key, event);
 }
 
+#include "private_stack.h"
+
 static bool process_packet(Packet* p)
 {
     assert(p->pkth && p->pkt);
@@ -213,13 +215,11 @@ static bool process_packet(Packet* p)
         if (!main_hook(p))
             return false;
     }
-
+    /* only mark the end of packet processing, not jumping */
+    if (!p->is_rebuilt())
+        stack_end(p->flow_key);
     return true;
 }
-
-#include "private_stack.h"
-/* avoid tenative definition */
-bool priv_stk_ret;
 
 static inline bool is_sticky_verdict(const DAQ_Verdict verdict)
 {
@@ -962,12 +962,9 @@ DAQ_RecvStatus Analyzer::process_messages()
         /* Mark private stack as end and immediately yield, 
          * such that private stack never touch code outside this loop.
          */
-        stack_end();
-        stack_next();
+        stack_next_2();
     }
-    while (!all_stacks_finished()) {
-        stack_switch(-1, 0);
-    }
+    // fprintf(stderr, "Previous batch size: %u\n", num_recv);
 
     /* batch destory of contexts */
     daq_instance->reset_batch_idx();

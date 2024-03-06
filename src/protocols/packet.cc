@@ -91,6 +91,7 @@ void Packet::reset()
     user_inspection_policy_id = 0;
     user_ips_policy_id = 0;
     user_network_policy_id = 0;
+    flow_key = 0;
     vlan_idx = 0;
     filtering_state.clear();
     sect = PS_NONE;
