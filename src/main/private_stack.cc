@@ -1,5 +1,5 @@
 /* enable assertion in this TU only */
-#undef NDEBUG
+// #undef NDEBUG
 /* enable logs even if optimization is enabled */
 // #define DEBUG_MSGS
 // #undef DEBUG_MSGS
@@ -42,7 +42,9 @@ static uint64_t available_vector;
 
 // static std::set<uint64_t> seenFlow;
 /* key: flow *, value: packet vector */
-static std::unordered_map<uint64_t, uint64_t> seenFlow;
+// static std::unordered_map<uint64_t, uint64_t> seenFlow;
+static uint64_t seenFlow[MAX_STACK_NUM];
+static unsigned seenFlowSize;
 static std::vector<int> redoQueue;
 // void *redoAddr;
 /* depending on the last pkt has flow or not, this is set upon two conditions:
@@ -76,10 +78,12 @@ void reserve_stacks(unsigned num)
     flowIdxCtr = 0;
     available_vector = UINT64_MAX;
     all_flows_initialized = false;
-    seenFlow.clear();
+    // seenFlow.clear();
     /* redo queue must be flushed, otherwise, it's taking up buffer */
     assert(redoQueue.empty());
     redoIdx = 0;
+    /* TODO: don't manually set this, shrink flow table instead */
+    seenFlowSize = 0;
 }
 
 /* NB: stack index can be negative! */
@@ -90,6 +94,19 @@ void stack_switch(int from, int to)
     /* manually set stack index (instead of self-inc) when switching */
     CurrStack = to;
     StackSwitchAsm(fromStack, toStack);
+}
+
+static inline int get_key_from_flow_ptr(uint64_t flow)
+{
+    int *flowInt = reinterpret_cast<int *>(flow);
+    /* magic number retrieved from disassembly */
+    return *(flowInt + 94);
+}
+
+static inline void set_key_to_flow_ptr(uint64_t flow, int idx)
+{
+    int *flowInt = reinterpret_cast<int *>(flow);
+    *(flowInt + 94) = idx;
 }
 
 /* Mark a stack as end.
@@ -105,15 +122,16 @@ void stack_end(uint64_t flow)
     /* if this packet is not associated with any flow, just return */
     if (!flow)
         return;
-    auto flowIt = seenFlow.find(flow);
-    assert(flowIt != seenFlow.end());
+    int flowIdx = get_key_from_flow_ptr(flow);
     /* since this flow still has packets left, vec is always non-zero */
-    int currPkt = __builtin_clzl(flowIt->second);
+    int currPkt = __builtin_clzl(seenFlow[flowIdx]);
     assert((CurrStack == currPkt) && "Current packet not the first packet of flow?");
-    flowIt->second &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - CurrStack));
-    /* make hash table remain size, reject a flow by active vector */
-    // if (!flowIt->second)
-    //     seenFlow.erase(flow);
+    seenFlow[flowIdx] &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - CurrStack));
+    /* mark the flow as not seen when we finish processing a flow
+     * TODO: check whether multiple unconditional set, or 1 conditional set, is faster
+     */
+    if (!seenFlow[flowIdx])
+        set_key_to_flow_ptr(flow, -1);
 #ifdef DEBUG_MSGS
     if (CurrStack + 1 == NumStacks)
         processedPkts += NumStacks;
@@ -173,7 +191,7 @@ static inline int get_next_packet_2()
         return ret;
     }
     /* if no flow pending and left, we are clear to go */
-    if (seenFlow.empty()) {
+    if (!seenFlowSize) {
 #ifdef DEBUG_MSGS
     fprintf(stderr, "[type 2] Switching from #%d to #%d (empty flow)\n", CurrStack, -1);
 #endif
@@ -188,7 +206,7 @@ static inline int get_next_packet_2()
     }
     
     /* else, RR all active flows to make PL */
-    unsigned threshold = flowIdxCtr + seenFlow.size();
+    unsigned threshold = flowIdxCtr + seenFlowSize;
     /* TODO: fast path when there is only one flow */
     do {
         /* all flows could not find a packet */
@@ -198,22 +216,21 @@ static inline int get_next_packet_2()
 #endif
             return -1;
         }
-        auto it = seenFlow.begin();
-        std::advance(it, flowIdxCtr % seenFlow.size());
+        uint64_t thisVec = seenFlow[flowIdxCtr % seenFlowSize];
         flowIdxCtr++;
         // ret = (it->second == 0) ? -1 : __builtin_clzl(it->second);
-        ret = __builtin_clzl(it->second);
+        ret = __builtin_clzl(thisVec);
         /* when flow vec is non-zero, clz returns valid output */
-        if (it->second)
+        if (thisVec)
             break;
     // } while (ret == -1);
     } while (true);
 
 #ifdef DEBUG_MSGS
-    fprintf(stderr, "[type 2] Switching from #%d to #%d (Counter: %u, flow num: %ld)\n", CurrStack, ret, flowIdxCtr - 1, seenFlow.size());
+    fprintf(stderr, "[type 2] Switching from #%d to #%d (Counter: %u, flow num: %u)\n", CurrStack, ret, flowIdxCtr - 1, seenFlowSize);
     fprintf(stderr, "Vector of each flow:\n");
-    for (const auto &vit : seenFlow) {
-        fprintf(stderr, "\t%lx (%d)\n", vit.second, (vit.second == 0) ? -1 : __builtin_clzl(vit.second));
+    for (int i = 0; i < seenFlowSize; i++) {
+        fprintf(stderr, "\t%lx (%d)\n", seenFlow[i], (seenFlow[i] == 0) ? -1 : __builtin_clzl(seenFlow[i]));
     }
 #endif
 
@@ -258,15 +275,17 @@ void stack_next_2()
 /* note that we should also set persistent flow key upon flow start */
 void mark_flow_start(uint64_t flow)
 {
-    auto res = seenFlow.find(flow);
+    int key = get_key_from_flow_ptr(flow);
 
-    /* TODO: this policy requires too many hash table lookup */
-    if (res == seenFlow.end()) {
-        seenFlow.emplace(std::make_pair(flow, get_curr_pkt_vec()));
-    } else {
-        // stack_disable();
-        res->second |= get_curr_pkt_vec();
-    }
+    /* -1 is used as default value
+     * TODO: check if this slows down flow init
+     * note that flow key must be rewritten, whether the flow is in FT or not
+     */
+    if (key < 0)
+        key = seenFlowSize++;
+    set_key_to_flow_ptr(flow, key);
+
+    seenFlow[key] |= (uint64_t)1 << (MAX_STACK_NUM - 1 - CurrStack);
     
     /* This is a tricky location: this function could be executed by
      * both normal and redo situations. So redoQueue is introduced
@@ -306,9 +325,8 @@ void mark_flow_end(uint64_t flow)
     }
     // assert(redoAddr && "Set redo address before marking end of flow!");
     /* by looking up the hash table, we get the packets from the same flow */
-    auto res = seenFlow.find(flow);
-    assert(res != seenFlow.end());
-    uint64_t pktVec = res->second;
+    int key = get_key_from_flow_ptr(flow);
+    uint64_t pktVec = seenFlow[key];
     assert(pktVec != 0);
     int nextPkt;
     while (pktVec && 
@@ -334,7 +352,7 @@ void mark_flow_end(uint64_t flow)
             /* remove all pending packets in the flow..
              * they will create a new one if needed
              */
-            res->second &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - nextPkt));
+            seenFlow[key] &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - nextPkt));
         }
         pktVec &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - nextPkt));
     }

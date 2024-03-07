@@ -463,6 +463,7 @@ public:  // FIXIT-M privatize if possible
 
     uint32_t default_session_timeout = 0;
 
+    int32_t flow_key = -1;
     int32_t client_intf = 0;
     int32_t server_intf = 0;
 
