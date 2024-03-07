@@ -962,7 +962,7 @@ DAQ_RecvStatus Analyzer::process_messages()
         /* Mark private stack as end and immediately yield, 
          * such that private stack never touch code outside this loop.
          */
-        stack_next_2();
+        stack_next_2_final(2);
     }
 #ifdef DEBUG_MSGS
     fprintf(stderr, "Previous batch size: %u, max batch size: %u\n", num_recv, max_recv);

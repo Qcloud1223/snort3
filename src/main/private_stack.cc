@@ -22,6 +22,8 @@
 #define likely(x)       __builtin_expect(!!(x), 1)
 #define unlikely(x)     __builtin_expect(!!(x), 0)
 
+#define MAX_SP_NUM 8
+
 RegSet DefaultStack;
 void *StackTops[MAX_STACK_NUM];
 RegSet RestoreRegs[MAX_STACK_NUM];
@@ -44,6 +46,9 @@ static uint64_t available_vector;
 /* key: flow *, value: packet vector */
 // static std::unordered_map<uint64_t, uint64_t> seenFlow;
 static uint64_t seenFlow[MAX_STACK_NUM];
+static unsigned char stackSizes[MAX_SP_NUM];
+static unsigned char stackIdxs[MAX_SP_NUM];
+static unsigned char stackBuffer[MAX_SP_NUM][MAX_STACK_NUM];
 static unsigned seenFlowSize;
 static std::vector<int> redoQueue;
 // void *redoAddr;
@@ -84,6 +89,8 @@ void reserve_stacks(unsigned num)
     redoIdx = 0;
     /* TODO: don't manually set this, shrink flow table instead */
     seenFlowSize = 0;
+    memset(stackSizes, 0, MAX_SP_NUM);
+    memset(stackIdxs, 0, MAX_SP_NUM);
 }
 
 /* NB: stack index can be negative! */
@@ -171,83 +178,58 @@ static inline int non_zero_rr(uint64_t vec)
     return moved ? __builtin_clzl(moved) : __builtin_clzl(vec);
 }
 
-/* type 2 SP get_next: picking first packet of each flow */
-static inline int get_next_packet_2()
+static inline int push_flows()
 {
-    int ret;
-    /* if there is still flow pending, move to the next stack to make flows */
-    if (!all_flows_initialized) {
-        /* all previous packets have no flow-level processing,
-         * we have no choice but classic finish vector
-         * note that available_vector is guaranteed to be non-zero
-         */
-        // ret = __builtin_clzl(available_vector);
-        ret = non_zero_rr(available_vector);
 #ifdef DEBUG_MSGS
-    // fprintf(stderr, "[type 2] Switching from #%d to #%d (pre-initialized)\n", CurrStack, (CurrStack + 1 == NumStacks) ? ret : CurrStack + 1);
-    fprintf(stderr, "[type 2] Switching from #%d to #%d (pre-initialized)\n", CurrStack, ret);
+    fprintf(stderr, "[Push] Reaching flow SP, start to push packets\n");
 #endif
-        // return (CurrStack + 1 == NumStacks) ? ret : CurrStack + 1;
-        return ret;
-    }
-    /* if no flow pending and left, we are clear to go */
-    if (!seenFlowSize) {
+    int ctr = 0;
+    for (unsigned i = 0; i < seenFlowSize; i++) {
+        if (seenFlow[i] == 0)
+            continue;
+        int idx = __builtin_clzl(seenFlow[i]);
+        /* push 1st packet of each flow into the very first SP */
+        stackBuffer[0][stackSizes[0]++] = idx;
+        /* flow vec should be masked at flow_end */
+        // seenFlow[i] &= ~((uint64_t)1 << (MAX_STACK_NUM - 1 - idx));
+        ctr++;
 #ifdef DEBUG_MSGS
-    fprintf(stderr, "[type 2] Switching from #%d to #%d (empty flow)\n", CurrStack, -1);
+    fprintf(stderr, "\tPushing flow #%d, packet #%d\n", i, idx);
 #endif
-        return -1;
     }
 
     if (unlikely(!redoQueue.empty())) {
-        int to = redoQueue[redoIdx++];
+        int redo = redoQueue[redoIdx++];
+#ifdef DEBUG_MSGS
+    fprintf(stderr, "\tPushing redo flow, packet #%d\n", redo);
+#endif
+        stackBuffer[0][stackSizes[0]++] = redo;
         if (redoIdx == redoQueue.size())
             redoQueue.clear();
-        return to;
+        ctr++;
     }
-    
-    /* else, RR all active flows to make PL */
-    unsigned threshold = flowIdxCtr + seenFlowSize;
-    /* TODO: fast path when there is only one flow */
-    do {
-        /* all flows could not find a packet */
-        if (unlikely(flowIdxCtr == threshold)) {
 #ifdef DEBUG_MSGS
-    fprintf(stderr, "[type 2] flow table depleted, switching to main stack\n");
+    fprintf(stderr, "\tPushing %d pkts in total\n", ctr);
 #endif
-            return -1;
-        }
-        uint64_t thisVec = seenFlow[flowIdxCtr % seenFlowSize];
-        flowIdxCtr++;
-        // ret = (it->second == 0) ? -1 : __builtin_clzl(it->second);
-        ret = __builtin_clzl(thisVec);
-        /* when flow vec is non-zero, clz returns valid output */
-        if (thisVec)
-            break;
-    // } while (ret == -1);
-    } while (true);
-
-#ifdef DEBUG_MSGS
-    fprintf(stderr, "[type 2] Switching from #%d to #%d (Counter: %u, flow num: %u)\n", CurrStack, ret, flowIdxCtr - 1, seenFlowSize);
-    fprintf(stderr, "Vector of each flow:\n");
-    for (int i = 0; i < seenFlowSize; i++) {
-        fprintf(stderr, "\t%lx (%d)\n", seenFlow[i], (seenFlow[i] == 0) ? -1 : __builtin_clzl(seenFlow[i]));
-    }
-#endif
-
-    return ret;
+    return ctr;
+    /* TODO: directly push into the last SP as a fast path */
 }
 
 void stack_next_0()
 {
     /* return to main stack if initialization of all stacks not done */
-    int to = ((CurrStack + 1) == NumStacks) ? 0 : -1;
-    /* under very, very rare conditions, stack 0 is a malformed packet,
-     * which prohibits switching there
-     * TODO: this is still vulnerable when all packets in a batch is malformed
-     * TODO: switch to non_zero_rr, but that might be slow
-     */
-    if (unlikely(__builtin_clzl(available_vector)))
-        to = __builtin_clzl(available_vector);
+    int to;
+    if (CurrStack + 1 != NumStacks) {
+        to = -1;
+    } else {
+        to = 0;
+        /* under very, very rare conditions, stack 0 is a malformed packet,
+         * which prohibits switching there
+         * rebase next jump if leading packets is already done
+         */
+        if (unlikely(__builtin_clzl(available_vector)))
+            to = __builtin_clzl(available_vector);
+    }
 #ifdef DEBUG_MSGS
     fprintf(stderr, "[Init] Starting stack #%d, switching to %d (total pkts: %ld)\n", CurrStack, to, processedPkts + CurrStack + 1);
 #endif
@@ -263,12 +245,64 @@ void stack_next_1()
     stack_switch(CurrStack, to);
 }
 
-void stack_next_2()
+void stack_next_2(int currSPIdx)
 {
-    int to = get_next_packet_2();
-// #ifdef DEBUG_MSGS
-//     fprintf(stderr, "[Type 2] Switching from #%d to #%d\n", CurrStack, to);
-// #endif
+    /* get packet from previous SP */
+    int prevSPIdx = currSPIdx - 1;
+    /* if previous SP still has packets, PL [prev, curr] */
+    if (stackIdxs[prevSPIdx] != stackSizes[prevSPIdx]) {
+        /* advance idx of previous SP, and size of current SP */
+        stackIdxs[prevSPIdx]++;
+        stackBuffer[currSPIdx][stackSizes[currSPIdx]++] = CurrStack;
+#ifdef DEBUG_MSGS
+    fprintf(stderr, "[Type 2] Consuming pkt #%d from SP #%d, idx %d/%d\n", stackBuffer[prevSPIdx][stackIdxs[prevSPIdx] - 1], prevSPIdx, stackIdxs[prevSPIdx], stackSizes[prevSPIdx]);
+#endif
+        stack_switch(CurrStack, stackBuffer[prevSPIdx][stackIdxs[prevSPIdx] - 1]);
+    } 
+    /* if current SP is not empty, simply hand control to first pkt of this SP */
+    else if (stackIdxs[currSPIdx] != stackSizes[currSPIdx]) {
+        stackIdxs[currSPIdx]++;
+        stackBuffer[currSPIdx][stackSizes[currSPIdx]++] = CurrStack;
+#ifdef DEBUG_MSGS
+    fprintf(stderr, "[Type 2] Moving pkt %d from SP #%d, idx %d/%d\n", stackBuffer[currSPIdx][stackIdxs[currSPIdx] - 1], currSPIdx, stackIdxs[currSPIdx], stackSizes[currSPIdx]);
+#endif
+        stack_switch(CurrStack, stackBuffer[currSPIdx][stackIdxs[currSPIdx] - 1]);
+    }
+    /* if there is only 1 flow left, packets will not present in intermediate SPs,
+     * so we silently return here
+     */
+}
+
+void stack_next_2_final(int currSPIdx)
+{
+    /* get packet from previous SP */
+    int prevSPIdx = currSPIdx - 1;
+    /* if previous SP still has packets, PL [prev, curr] */
+    if (stackIdxs[prevSPIdx] != stackSizes[prevSPIdx]) {
+        /* advance idx of previous SP, and size of current SP */
+        stackIdxs[prevSPIdx]++;
+        stackBuffer[currSPIdx][stackSizes[currSPIdx]++] = CurrStack;
+        stack_switch(CurrStack, stackBuffer[prevSPIdx][stackIdxs[prevSPIdx] - 1]);
+    }
+    /* TODO: move buffer into SP can avoid this branching */
+    if (!all_flows_initialized)
+        stack_switch(CurrStack, non_zero_rr(available_vector));
+    /* this branch is for redo packets only
+     * TODO: prune all redo packets
+     */
+    if (unlikely(stackIdxs[0] != stackSizes[0])) {
+        stackIdxs[0]++;
+        stack_switch(CurrStack, stackBuffer[0][stackIdxs[0] - 1]);
+    }
+    /* difference here: when all packets are exhausted, push flow */
+    int res = push_flows();
+    /* end the batch if there is nothing to push */
+    int to;
+    if (res) {
+        to = stackBuffer[0][stackIdxs[0]++];
+    } else {
+        to = -1;
+    }
     stack_switch(CurrStack, to);
 }
 
@@ -292,21 +326,14 @@ void mark_flow_start(uint64_t flow)
      * to separate the two.
      */
     int to;
-    if (unlikely(!redoQueue.empty())) {
-        to = redoQueue[redoIdx++];
-        if (redoIdx == redoQueue.size()) {
-            redoIdx = 0;
-            redoQueue.clear();
-        }
-    }
-    else {
-        /* RR, but bypass all finished stacks */
-        // to = get_next_packet_1();
-        // uint64_t tmpVec = (available_vector << to) >> to;
-        // to = (tmpVec == 0) ? __builtin_clzl(available_vector) : __builtin_clzl(tmpVec);
-        
-        /* TODO: non zero rr might be slow */
-        to = non_zero_rr(available_vector);
+    /* TODO: non zero rr might be slow */
+    to = non_zero_rr(available_vector);
+
+    /* if RR hit the bottom, all flows are initialized, push flow to the first SP */
+    if (to == __builtin_clzl(available_vector)) {
+        push_flows();
+        /* the next packet is always at the first SP */
+        to = stackBuffer[0][stackIdxs[0]++];
     }
 #ifdef DEBUG_MSGS
     fprintf(stderr, "[flow_start] Switching from #%d to #%d\n", CurrStack, to);
@@ -359,9 +386,4 @@ void mark_flow_end(uint64_t flow)
     /* note we should prevent the stacks to be redo multiple times
      * but since flow remove is quite rare, the chance for it to happen is low
      */
-}
-
-void stack_save()
-{
-    SaveStack(&RestoreRegs[CurrStack]);
 }

@@ -33,12 +33,12 @@ void reserve_stacks(unsigned num);
 void stack_switch(int from, int to);
 void stack_next_0();
 void stack_next_1();
-void stack_next_2();
+void stack_next_2(int spIdx);
+void stack_next_2_final(int spIdx);
 void stack_end(uint64_t flow);
 /* mark the lookup and remove of flow */
 void mark_flow_start(uint64_t flow);
 void mark_flow_end(uint64_t flow);
-void stack_save();
 /* inline to prevent multiple definition */
 // inline void set_redo_addr(void *addr) {redoAddr = addr;}
 
