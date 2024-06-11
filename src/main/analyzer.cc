@@ -906,6 +906,10 @@ void Analyzer::handle_uncompleted_commands()
 }
 
 static volatile unsigned num_recv = 0;
+uint64_t time_start, time_end;
+uint64_t time_total = 0;
+/* For rdtsc */
+#include <x86intrin.h>
 
 /* Q: main processing loop of the worker */
 DAQ_RecvStatus Analyzer::process_messages()
@@ -924,6 +928,7 @@ DAQ_RecvStatus Analyzer::process_messages()
         rstat = daq_instance->receive_messages(max_recv);
     }
 
+    time_start = _rdtsc();
     // Preemptively service available onloads to potentially unblock processing the first message.
     // This conveniently handles servicing offloads in the no messages received case as well.
     DetectionEngine::onload();
@@ -974,6 +979,8 @@ DAQ_RecvStatus Analyzer::process_messages()
     while((msg = daq_instance->next_message()) != nullptr) {
         switcher->stop();
     }
+    time_end = _rdtsc();
+    time_total += time_end - time_start;
 
     if (exit_after_cnt && (exit_after_cnt -= num_recv) == 0)
         stop();
@@ -982,8 +989,6 @@ DAQ_RecvStatus Analyzer::process_messages()
     return rstat;
 }
 
-/* For rdtsc */
-#include <x86intrin.h>
 /* For perf_event_open */
 #include <linux/perf_event.h>
 #include <sys/ioctl.h>
@@ -1028,8 +1033,6 @@ static uint64_t disable_instruction_count(int fd)
 /* Q: main loop of worker thread */
 void Analyzer::analyze()
 {
-    uint64_t time_start, time_end;
-    uint64_t time_total = 0;
 #ifdef CORRECTNESS
     int fd;
     fd = enable_instruction_count();
@@ -1052,10 +1055,10 @@ void Analyzer::analyze()
         // the returned messages to determine if we should immediately continue, take the opportunity
         // to deal with some house cleaning work, or terminate the analyzer thread.
         /* Q: Message is a concept under DAQ. Roughly, DAQ is packet+metadata */
-        time_start = __rdtsc();
+        // time_start = __rdtsc();
         DAQ_RecvStatus rstat = process_messages();
-        time_end = __rdtsc();
-        time_total += time_end - time_start;
+        // time_end = __rdtsc();
+        // time_total += time_end - time_start;
         if (rstat != DAQ_RSTAT_OK && rstat != DAQ_RSTAT_WOULD_BLOCK)
         {
             if (rstat == DAQ_RSTAT_TIMEOUT)
@@ -1093,6 +1096,9 @@ void Analyzer::analyze()
     printf("Counting instructions done, total: %lu\n", count);
 #endif
     printf("Packet processing done. Elapsed cycles: %lu\n", time_total);
+    // Q: trace peak memory usage
+    // int sleeper;
+    // scanf("%d", &sleeper);
 }
 
 void Analyzer::start()
