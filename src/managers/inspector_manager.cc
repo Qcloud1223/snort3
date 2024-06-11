@@ -2212,7 +2212,8 @@ inline void InspectorManager::internal_execute(Packet* p)
             Flow& flow = *p->flow;
             flow.session->process(p);
         }
-        stack_next();
+        if (!p->is_rebuilt())
+            stack_next();
         if ( p->flow->reload_id != reload_id )
         {
             ::execute<T>(p, tp->first.vec, tp->first.num);
