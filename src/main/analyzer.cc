@@ -159,6 +159,11 @@ ContextSwitcher* Analyzer::get_switcher()
     return local_analyzer->switcher;
 }
 
+void Analyzer::set_switcher(ContextSwitcher *cs)
+{
+    local_analyzer->switcher = cs;
+}
+
 void Analyzer::set_main_hook(MainHook_f f)
 {
     main_hook = f;
@@ -447,7 +452,7 @@ void Analyzer::process_daq_pkt_msg(DAQ_Msg_h msg, bool retry)
         post_process_daq_pkt_msg(p);
         /* This stop a context from the end, which would be disaterous if we don't follow the order */
         /* TODO: correctly stop/abort all contexts upon batch finish */
-        // switcher->stop();
+        switcher->stop();
     }
 
 #if 0 // defined (__SANITIZE_ADDRESS__) && defined (REG_TEST)
@@ -636,6 +641,8 @@ void Analyzer::init_unprivileged()
 
     for ( unsigned i = 0; i < max_contexts; ++i )
         switcher->push(new IpsContext);
+
+    init_switchers(local_analyzer->switcher);
 
     const SnortConfig* sc = SnortConfig::get_conf();
 
@@ -950,6 +957,7 @@ DAQ_RecvStatus Analyzer::process_messages()
             :
         );
         CurrStack = ReservedStacks++;
+        set_private_switcher();
         if (skip_cnt > 0) {
             Profile profile(daqPerfStats);
             daq_stats.skipped++;
@@ -975,10 +983,14 @@ DAQ_RecvStatus Analyzer::process_messages()
     }
 
     /* batch destory of contexts */
-    daq_instance->reset_batch_idx();
-    while((msg = daq_instance->next_message()) != nullptr) {
-        switcher->stop();
-    }
+    // daq_instance->reset_batch_idx();
+    // while((msg = daq_instance->next_message()) != nullptr) {
+    //     switcher->stop();
+    // }
+
+    // for (int i = 0; i < switcher->busy_count(); i++)
+    //     switcher->stop();
+
     time_end = _rdtsc();
     time_total += time_end - time_start;
 

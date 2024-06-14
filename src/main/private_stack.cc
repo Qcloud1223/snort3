@@ -11,6 +11,9 @@
  * which seems to only enable mere debug logs (Phew!)
  */
 #include "config.h"
+#include "detection/context_switcher.h"
+#include "detection/ips_context.h"
+#include "analyzer.h"
 
 #define likely(x)       __builtin_expect(!!(x), 1)
 
@@ -25,6 +28,12 @@ static uint64_t finished_vector;
 static bool all_stacks_initialized = false;
 static uint64_t locked_vector;
 
+static uint64_t finished_pkts;
+
+/* hopefully switchers[-1] = main_switcher */
+static ContextSwitcher *main_switcher;
+static ContextSwitcher *switchers[MAX_STACK_NUM];
+
 void init_stacks()
 {
     size_t wholesize = MAX_STACK_NUM * MAX_STACK_SIZE;
@@ -35,6 +44,25 @@ void init_stacks()
         allstacks = (void *)((size_t)allstacks + MAX_STACK_SIZE);
         StackTops[i] = allstacks;
     }
+}
+
+void init_switchers(void *cs_main)
+{
+    main_switcher = (ContextSwitcher *)cs_main;
+    for (int i = 0; i < MAX_STACK_NUM; i++)
+        switchers[i] = new ContextSwitcher;
+    /* copy from: Analyzer::init_unprivileged() */
+    const unsigned int max_contexts = 63;
+    for (int i = 0; i < MAX_STACK_NUM; i++) {
+        for (int j = 0; j < max_contexts; j++) {
+            switchers[i]->push(new snort::IpsContext);
+        }
+    }
+}
+
+void set_private_switcher()
+{
+    Analyzer::set_switcher(switchers[CurrStack]);
 }
 
 void reserve_stacks(unsigned num)
@@ -55,6 +83,8 @@ void stack_switch(int from, int to)
     RegSet *toStack   = to < 0 ? &DefaultStack : &CalleeRegs[to];
     /* manually set stack index (instead of self-inc) when switching */
     CurrStack = to;
+    /* switch fake global variables */
+    Analyzer::set_switcher(to < 0 ? main_switcher : switchers[to]);
     StackSwitchAsm(fromStack, toStack);
 }
 
@@ -138,6 +168,7 @@ void stack_end()
 #endif
     assert(CurrStack >= 0);
     finished_vector |= ((uint64_t)1 << CurrStack);
+    finished_pkts++;
 }
 
 bool all_stacks_finished()

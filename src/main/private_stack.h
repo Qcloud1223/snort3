@@ -21,6 +21,8 @@ extern unsigned ReservedStacks;
 
 /* public interfaces */
 void init_stacks();
+void init_switchers(void *);
+void set_private_switcher();
 void reserve_stacks(unsigned num);
 // bool process_packet_with_stack(snort::Packet *p);
 void stack_switch(int from, int to);

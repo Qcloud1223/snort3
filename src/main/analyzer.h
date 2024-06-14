@@ -77,6 +77,7 @@ public:
 
     SO_PUBLIC static Analyzer* get_local_analyzer();
     static ContextSwitcher* get_switcher();
+    static void set_switcher(ContextSwitcher *);
     static void set_main_hook(MainHook_f);
 
     Analyzer(snort::SFDAQInstance*, unsigned id, const char* source, uint64_t msg_cnt = 0);
