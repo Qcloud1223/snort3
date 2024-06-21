@@ -2,9 +2,14 @@ import matplotlib.patches
 import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
+import sys
 
-data_path = "/home/iom/snort3-vanilla/f100_1000_r64_pinned_5sp_L1_tsc.txt"
-normalized = True
+if len(sys.argv) < 2:
+    print("usage: python plot_expr_new.py trace_name <normalized>")
+    exit(-1)
+else:
+    data_path = sys.argv[1]
+normalized = True if len(sys.argv) >= 3 else False
 
 printable_counters = [
     "idq_uops_not_delivered.core:u",
