@@ -250,18 +250,36 @@ vanilla_unprint_np = np.array(vanilla_unprintable)
 if len(np.shape(optimized_unprint_np)) == 4:
     for j in range(num_traces):
         fe_all_opt_mean = np.mean(optimized_np[j, :, :, 0].astype(float), axis=1)
+        fe_all_van_mean = np.mean(vanilla_np[j, :, :, 0].astype(float), axis=1)
         fe_latency_opt_mean = np.mean(optimized_unprint_np[j, :, :, 0].astype(float), axis=1)
         fe_latency_van_mean = np.mean(vanilla_unprint_np[j, :, :, 0].astype(float), axis=1)
         # print bw count
+        # for k, b in enumerate(opt_bars[0, j, :]):
+        #     axs[0, j].text(b.get_x(), b.get_height(), f'{((fe_all_opt_mean[k] - fe_latency_opt_mean[k] * 4) / (trace_reqs[j] if normalized == True else 1)):.3e}')
+        
+        # print bw reduce %
         for k, b in enumerate(opt_bars[0, j, :]):
-            axs[0, j].text(b.get_x(), b.get_height(), f'{((fe_all_opt_mean[k] - fe_latency_opt_mean[k] * 4) / (trace_reqs[j] if normalized == True else 1)):.3e}')
+            opt_bw = (fe_all_opt_mean[k] - fe_latency_opt_mean[k] * 4) / (trace_reqs[j] if normalized == True else 1)
+            van_bw = (fe_all_van_mean[k] - fe_latency_van_mean[k] * 4) / (trace_reqs[j] if normalized == True else 1)
+            axs[0, j].text(b.get_x(), b.get_height(), f'{(opt_bw - van_bw) / van_bw:.2%}')
+
         latency_bar_opt = axs[0, j].bar(x_axis-0.2, fe_latency_opt_mean * 4 / (trace_reqs[j] if normalized == True else 1), color='pink', width=0.4)
+        latency_patch = matplotlib.patches.Patch(color='pink', label='fe-latency')
+        bw_patch = matplotlib.patches.Patch(color='red', label='fe-bw')
+        axs[0, j].legend(handles=[latency_patch, bw_patch])
+
         # print latency %
         # for k, b in enumerate(latency_bar_opt):
         #     axs[0, j].text(b.get_x(), b.get_height(), f'{fe_latency_opt_mean[k] * 4 / optimized_np[j, k, :, 0].astype(float).mean():.2%}')
+        
         # print latency count
+        # for k, b in enumerate(latency_bar_opt):
+        #     axs[0, j].text(b.get_x(), b.get_height(), f'{fe_latency_opt_mean[k] * 4:.3e}')
+
+        # print latency reduce %
         for k, b in enumerate(latency_bar_opt):
-            axs[0, j].text(b.get_x(), b.get_height(), f'{fe_latency_opt_mean[k] * 4:.3e}')
+            axs[0, j].text(b.get_x(), b.get_height(), f'{(fe_latency_opt_mean[k] - fe_latency_van_mean[k])/fe_latency_van_mean[k]:.2%}')
+
         # latency_bar_van = axs[0, j].bar(x_axis+0.2, fe_latency_van_mean * 4 / (trace_reqs[j] if normalized == True else 1), color='cyan', width=0.4)
         # for k, b in enumerate(latency_bar_van):
         #     axs[0, j].text(b.get_x(), b.get_height(), f'{fe_latency_van_mean[k] * 4 / vanilla_np[j, k, :, 0].astype(float).mean():.2%}')
