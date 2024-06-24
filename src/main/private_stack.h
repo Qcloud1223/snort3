@@ -11,13 +11,14 @@ typedef void *RegSet[9];
 #define MAX_STACK_NUM 64
 #define MAX_STACK_SIZE ((1 << 23))
 static RegSet CalleeRegs[MAX_STACK_NUM];
-static unsigned NumStacks;
+extern unsigned NumStacks;
 
 /* Q: create stack now happens in another module, so this has to be non-static */
 extern RegSet DefaultStack;
 extern void *StackTops[MAX_STACK_NUM];
 extern int CurrStack;
 extern unsigned ReservedStacks;
+extern void* pkt_buffer[MAX_STACK_NUM];
 
 /* public interfaces */
 void init_stacks();
@@ -44,11 +45,25 @@ extern void RestoreStack(RegSet *regs);
 
 }
 
-#define stack_next_prefetch(var_to_prefetch) \
+/* prefetch a variable from the next stack 
+ * FIXME: not limit to packet-related variables
+ */
+#define stack_next_prefetch(var_to_prefetch)\
 do { \
-    int to = get_unfinished_stack(CurrStack); \
-    asm volatile ("prefetcht0 %[p]" : : [p] "m" (*reinterpret_cast<const volatile char *>(var_to_prefetch))); \
+    int to = get_unfinished_stack(CurrStack);\
+    asm volatile ( \
+        "prefetcht0 %[p]" : : [p] "m" \ 
+        (*reinterpret_cast<const volatile char *>( \
+                reinterpret_cast<Packet *>(pkt_buffer[(CurrStack+1) % NumStacks])->var_to_prefetch \
+            ) \
+        ) \
+    ); \
     stack_switch(CurrStack, to); \
+} while (0) \
+
+#define register_packet(p) \
+do { \
+    pkt_buffer[CurrStack] = p; \
 } while (0) \
 
 #endif

@@ -421,6 +421,7 @@ bool FlowControl::process(PktType type, Packet* p, bool* new_flow)
         flow->session = get_proto_session[to_utype(type)](flow);
     }
 
+    register_packet(p);
     stack_next();
     num_flows += process(flow, p);
 

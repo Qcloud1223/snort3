@@ -21,6 +21,7 @@ RegSet DefaultStack;
 void *StackTops[MAX_STACK_NUM];
 int CurrStack = 0;
 unsigned ReservedStacks = 0;
+unsigned NumStacks;
 
 static int finished_idx = -1;
 /* NB: all operation against this vector should be 64 bit */
@@ -33,6 +34,8 @@ static uint64_t finished_pkts;
 /* hopefully switchers[-1] = main_switcher */
 static ContextSwitcher *main_switcher;
 static ContextSwitcher *switchers[MAX_STACK_NUM];
+
+void* pkt_buffer[MAX_STACK_NUM]; 
 
 void init_stacks()
 {
