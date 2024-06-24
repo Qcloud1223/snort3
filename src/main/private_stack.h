@@ -32,7 +32,8 @@ void stack_end();
 void stack_lock();
 void stack_unlock();
 bool stack_finished(int idx);
-int get_unfinished_stack();
+// int get_unfinished_stack();
+int get_unfinished_stack(int curr);
 bool all_stacks_finished();
 extern bool priv_stk_ret;
 
@@ -42,5 +43,12 @@ extern int SaveStack(RegSet *regs);
 extern void RestoreStack(RegSet *regs);
 
 }
+
+#define stack_next_prefetch(var_to_prefetch) \
+do { \
+    int to = get_unfinished_stack(CurrStack); \
+    asm volatile ("prefetcht0 %[p]" : : [p] "m" (*reinterpret_cast<const volatile char *>(var_to_prefetch))); \
+    stack_switch(CurrStack, to); \
+} while (0) \
 
 #endif

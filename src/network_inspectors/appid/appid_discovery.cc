@@ -143,7 +143,7 @@ void AppIdDiscovery::do_application_discovery(Packet* p, AppIdInspector& inspect
         return;
 
     // if (!p->is_rebuilt())
-        stack_next();
+        stack_next_prefetch(p->flow->get_flow_data(AppIdSession::inspector_id));
     
     AppId service_id = APP_ID_NONE;
     AppId client_id = APP_ID_NONE;

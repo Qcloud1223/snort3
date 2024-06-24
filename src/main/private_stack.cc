@@ -114,7 +114,7 @@ void stack_unlock()
 }
 
 /* find pending stack starting from the next, disabling jumping to itself when possible */
-static int get_unfinished_stack(int curr)
+int get_unfinished_stack(int curr)
 {
     assert(curr >= 0);
     for (auto i = 0; i < ReservedStacks; i++) {
