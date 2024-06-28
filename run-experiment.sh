@@ -86,8 +86,11 @@ do
             # echo "CPU index: $cpu_idx"
             # first, we get bound and L1
             ./run-perf.sh -s bound -s L1i -s L1d -t "$trace" -b "$size" -c "$cpu_idx" 2>&1 | sed -E '/^ *[0-9,]+      [0-9a-zA-Z_\.\:-]+/!d' | awk '{print $1,$2}'
+            output=$(./run-perf.sh -s LLC-load -s LLC-store -t "$trace" -b "$size" -c "$cpu_idx" 2>&1) 
             # then, we get L2 and LLC
-            ./run-perf.sh -s LLC-load -s LLC-store -t "$trace" -b "$size" -c "$cpu_idx" 2>&1 | sed -E '/^ *[0-9,]+      [0-9a-zA-Z_\.\:-]+/!d' | awk '{print $1,$2}'
+            echo "$output" | sed -E '/^ *[0-9,]+      [0-9a-zA-Z_\.\:-]+/!d' | awk '{print $1,$2}'
+            # and tsc cycles
+            echo "$output" | sed '/^Packet processing done/!d' | sed -E 's/[a-zA-Z \.\:]*//' | awk '{printf $1} {print " tsc_cycles"}'
             echo ""
             cpu_idx=$((cpu_idx + 1)) 
         done
@@ -97,7 +100,9 @@ do
         for (( i=0;i<END;i++ )); do
             # echo "CPU index: $cpu_idx"
             ./run-perf.sh -s bound -s L1i -s L1d -t "$trace" -b "$size" -c "$cpu_idx" -v 2>&1 | sed -E '/^ *[0-9,]+      [0-9a-zA-Z_\.\:-]+/!d' | awk '{print $1,$2}'
-            ./run-perf.sh -s LLC-load -s LLC-store -t "$trace" -b "$size" -c "$cpu_idx" -v 2>&1 | sed -E '/^ *[0-9,]+      [0-9a-zA-Z_\.\:-]+/!d' | awk '{print $1,$2}'
+            output=$(./run-perf.sh -s LLC-load -s LLC-store -t "$trace" -b "$size" -c "$cpu_idx" -v 2>&1)
+            echo "$output" | sed -E '/^ *[0-9,]+      [0-9a-zA-Z_\.\:-]+/!d' | awk '{print $1,$2}'
+            echo "$output" | sed '/^Packet processing done/!d' | sed -E 's/[a-zA-Z \.\:]*//' | awk '{printf $1} {print " tsc_cycles"}'
             echo ""
             cpu_idx=$((cpu_idx + 1)) 
         done
