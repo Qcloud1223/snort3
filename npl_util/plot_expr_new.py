@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 import sys
+import re
 
 if len(sys.argv) < 2:
     print("usage: python plot_expr_new.py trace_name <normalized>")
@@ -300,6 +301,7 @@ aligned = False
 pinned = True if data_path.find('pinned') != -1 else False
 L1_breakdown = True if data_path.find('L1') != -1 else False
 enable_tsc = True if data_path.find('tsc') != -1 else False
+enable_prefetch = True if data_path.find('prefetch') != -1 else False
 sp_num = -1
 for it in data_path.split('_'):
     if it.find('sp') != -1:
@@ -307,15 +309,15 @@ for it in data_path.split('_'):
 
 if traces[0].find('align') != -1:
     aligned = True
-try:
-    flow_cnt = data_path.split('r')[-1].split('.')[0].split('_')[0]
-    flow_cnt = int(flow_cnt)
-except ValueError:
-    print(f"Cannot parse string {flow_cnt}")
+
+flow_cnt = re.search('r[0-9]+', data_path)
+if flow_cnt is not None:
+    flow_cnt = flow_cnt.group()[1:]
+else:
     flow_cnt = 'mixed'
 plt.suptitle(f"Flow: {flow_cnt}, Aligned: {aligned}, Normalized: {normalized}, Pinned: {pinned}, L1: {L1_breakdown}", size='xx-large')
 
 
-fig_path = f'/home/iom/snort3-git/npl_util/{"align_" if aligned == True else ""}{"normalized_" if normalized == True else ""}{"pinned_" if pinned == True else ""}{f"{sp_num}sp_" if sp_num != -1 else ""}{"L1_" if L1_breakdown == True else ""}{"tsc_" if enable_tsc == True else ""}{flow_cnt}.png'
+fig_path = f'/home/iom/snort3-git/npl_util/{"align_" if aligned == True else ""}{"normalized_" if normalized == True else ""}{"pinned_" if pinned == True else ""}{f"{sp_num}sp_" if sp_num != -1 else ""}{"L1_" if L1_breakdown == True else ""}{"tsc_" if enable_tsc == True else ""}{"prefetch_" if enable_prefetch == True else ""}{flow_cnt}.png'
 print(f"Writing to {fig_path}")
 plt.savefig(fig_path)
