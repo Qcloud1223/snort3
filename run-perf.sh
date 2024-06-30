@@ -23,6 +23,7 @@ while [[ "$#" -gt 0 ]]; do
         -t|--trace) trace="$2"; shift; shift;;
         -v|--vanilla) vanilla=true; shift;;
         -c|--cpu) pinned_cpu="$2"; shift; shift;;
+        -h|--hugepage) huge_page=R; shift;;
         *) echo "bad argument $1"; exit 1;;
     esac
 done
@@ -46,6 +47,12 @@ if [[ $vanilla == "true" ]]; then
     path="/home/iom/snort3-vanilla/"
 else
     path="/home/iom/snort3-git/"
+fi
+
+if [[ -z $huge_page ]]; then
+    exe_path="snort/bin/snort"
+else
+    exe_path="snort-hp/bin/snort"
 fi
 
 if [[ -z $pinned_cpu ]]; then
@@ -85,6 +92,14 @@ do
     elif [ "$set" == "LLC-store" ]; then
         event_list+=("LLC-store:u")
         event_list+=("LLC-store-misses:u")
+    elif [ "$set" == "iTLB" ]; then
+        event_list+=("iTLB-load:u")
+        event_list+=("iTLB-load-misses:u")
+    elif [ "$set" == "frontend-L3" ]; then
+        event_list+=("icache_64b.iftag_stall:u")
+        event_list+=("icache_16b.ifdata_stall:u")
+        event_list+=("cpu/event=0x80,umask=0x4,cmask=1,edge=1,name=iicache_16b.ifdata_stall:c1:e1:u/")
+        event_list+=("int_misc.clear_resteer_cycles:u")
     else
         echo "bad set type $set, exit"
         exit 1
@@ -116,7 +131,7 @@ real_size=$(( ${#event}-1 ))
 event=${event:0:real_size}
 
 # echo taskset -c "$pinned_cpu" perf stat --delay=-1 --control fd:"${ctl_fd}","${ctl_fd_ack}" -B -e "$event" -- "$path"snort/bin/snort -c "$path"lua/snort.lua -r "$trace" -A alert_full --daq-batch-size="$batch_size"
-PERF_CTL_FD=$ctl_fd PERF_CTL_ACK_FD=$ctl_fd_ack taskset -c "$pinned_cpu" perf stat --delay=-1 --control fd:"${ctl_fd}","${ctl_fd_ack}" -B -e "$event" -- "$path"snort/bin/snort -c "$path"lua/snort.lua -r "$trace" -A alert_full --daq-batch-size="$batch_size"
+PERF_CTL_FD=$ctl_fd PERF_CTL_ACK_FD=$ctl_fd_ack HUGETLB_ELFMAP=$huge_page taskset -c "$pinned_cpu" perf stat --delay=-1 --control fd:"${ctl_fd}","${ctl_fd_ack}" -B -e "$event" -- "$path$exe_path" -c "$path"lua/snort.lua -r "$trace" -A alert_full --daq-batch-size="$batch_size"
 
 if [[ $event_count -gt 8 ]]; then
     echo "Warning: event number over 8, multiplexing might happen and lead to imprecise result"
