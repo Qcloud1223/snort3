@@ -15,7 +15,8 @@ available_cpus=(
     47
 )
 
-while [[ "$#" -gt 0 ]]; do
+# ignore empty arguments, if any
+while [[ -n $1 ]]; do
     case $1 in
         -s|--event-set) event_set+=("$2"); shift; shift;;
         -e|--event) event_list+=("$2"); shift; shift;;
