@@ -192,6 +192,12 @@ while [ $# -ne 0 ]; do
         --disable-correctness)
             append_cache_entry ENABLE_CORRECTNESS       BOOL false
             ;;
+        --enable-hugepage)
+            append_cache_entry ENABLE_HUGEPAGE          BOOL true
+            ;;
+        --disable-hugepage)
+            append_cache_entry ENABLE_HUGEPAGE          BOOL false
+            ;;
         --enable-hardened-build)
             append_cache_entry ENABLE_HARDENED_BUILD    BOOL true
             ;;
