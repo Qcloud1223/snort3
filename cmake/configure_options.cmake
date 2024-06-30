@@ -192,7 +192,7 @@ endif( ENABLE_CORRECTNESS )
 
 if ( ENABLE_HUGEPAGE )
     set( HUGEPAGE_LINKER_FLAGS "-B /usr/local/share/libhugetlbfs -Wl,--no-as-needed -Wl,--hugetlbfs-align -Wl,--rpath=/usr/local/lib64")
-endif()
+endif( ENABLE_HUGEPAGE )
 
 # Accumulate extra flags and libraries
 #[[
