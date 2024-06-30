@@ -96,6 +96,9 @@ do
     elif [ "$set" == "iTLB" ]; then
         event_list+=("iTLB-load:u")
         event_list+=("iTLB-load-misses:u")
+    elif [ "$set" == "dTLB" ]; then
+        event_list+=("dTLB-load:u")
+        event_list+=("dTLB-load-misses:u")
     elif [ "$set" == "frontend-L3" ]; then
         event_list+=("icache_64b.iftag_stall:u")
         event_list+=("icache_16b.ifdata_stall:u")
