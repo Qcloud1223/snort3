@@ -41,7 +41,7 @@ include 'snort_defaults.lua'
 
 -- the following are quite capable with defaults:
 
-stream = { }
+stream = { max_flows = 524288 }
 stream_ip = { }
 stream_icmp = { }
 stream_tcp = { }
@@ -275,10 +275,14 @@ if ( tweaks ~= nil ) then
 end
 
 trace.modules = {
-    snort = {
-        all = 1
-    },
-    detection = {
-        detect_engine = 1
-    }
+    -- snort = {
+    --     all = 1
+    -- },
+    -- detection = {
+    --     detect_engine = 1
+    -- }
+}
+
+network = {
+    checksum_eval = "none"
 }
