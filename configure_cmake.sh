@@ -202,7 +202,7 @@ while [ $# -ne 0 ]; do
             append_cache_entry ENABLE_HUGEPAGE          BOOL true
             ;;
         --disable-hugepage)
-            append_cache_entry DISABLE_HUGEPAGE         BOOL false
+            append_cache_entry ENABLE_HUGEPAGE          BOOL false
             ;;
         --enable-pie)
             append_cache_entry ENABLE_PIE               BOOL true
