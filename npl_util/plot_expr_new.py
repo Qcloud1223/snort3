@@ -34,6 +34,28 @@ printable_counters = [
     "dTLB-load-misses"
 ]
 
+printable_counters_alias = [
+    "fronend stall",
+    "",
+    "",
+    "end to end (perf)",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "end to end (tsc)",
+    "iTLB stall",
+    "icache stall #1",
+    "icache stall #2",
+    "resteer stall",
+    "",
+    "",
+    "",
+    ""
+]
+
 unprintable_counters = [
     "idq_uops_not_delivered.cycles_0_uops_deliv.core:u"
 ]
@@ -130,7 +152,7 @@ optimized_np = np.array(optimized_printable)
 vanilla_np = np.array(vanilla_printable)
 
 # Prepare the figure and axis
-fig, axs = plt.subplots(num_series, num_traces, figsize=(24, 24))
+fig, axs = plt.subplots(num_series, num_traces, figsize=(24, num_series * 2))
 
 # convert the ax into 2d array for later indicing
 # note that subplots will not return array of axes if the dimension is 1
@@ -295,7 +317,8 @@ if len(np.shape(optimized_unprint_np)) == 4:
 
 # FIXME
 for c, ax in zip(printable_counters, axs):
-    ax[0].set_ylabel(c)
+    idx = printable_counters.index(c)
+    ax[0].set_ylabel(c if printable_counters_alias[idx] == "" else printable_counters_alias[idx])
 
 for t, ax in zip(traces, axs[0]):
     ax.set_title(t)
@@ -334,6 +357,10 @@ if m is not None:
     c2 = m.group()[2:]
 else:
     c2 = 'van'
+
+c1_patch = matplotlib.patches.Patch(color='red', label=c1)
+c2_patch = matplotlib.patches.Patch(color='blue', label=c2)
+fig.legend(handles=[c1_patch, c2_patch], fontsize="20")
 
 plt.suptitle(f"Flow: {flow_cnt}, Aligned: {aligned}, Normalized: {normalized}, Pinned: {pinned}, L1: {L1_breakdown}, tsc: {enable_tsc}, component1: {c1}, component2: {c2}", size='xx-large')
 
