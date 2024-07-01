@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import matplotlib
 import numpy as np
 import sys
+import re
 
 if len(sys.argv) < 2:
     print("usage: python plot_expr_new.py trace_name <normalized>")
@@ -22,7 +23,15 @@ printable_counters = [
     "LLC-load-misses",
     "LLC-store",
     "LLC-store-misses",
-    "tsc_cycles"
+    "tsc_cycles",
+    "icache_64b.iftag_stall:u",
+    "icache_16b.ifdata_stall:u",
+    "iicache_16b.ifdata_stall:c1:e1:u",
+    "int_misc.clear_resteer_cycles:u",
+    "iTLB-load",
+    "iTLB-load-misses",
+    "dTLB-load",
+    "dTLB-load-misses"
 ]
 
 unprintable_counters = [
@@ -307,15 +316,27 @@ for it in data_path.split('_'):
 
 if traces[0].find('align') != -1:
     aligned = True
-try:
-    flow_cnt = data_path.split('r')[-1].split('.')[0].split('_')[0]
-    flow_cnt = int(flow_cnt)
-except ValueError:
-    print(f"Cannot parse string {flow_cnt}")
+
+m = re.search('r[0-9]+', data_path)
+if m is not None:
+    flow_cnt = m.group()[1:]
+else:
     flow_cnt = 'mixed'
-plt.suptitle(f"Flow: {flow_cnt}, Aligned: {aligned}, Normalized: {normalized}, Pinned: {pinned}, L1: {L1_breakdown}", size='xx-large')
 
+m = re.search('c1[a-zA-Z\-]+', data_path)
+if m is not None:
+    c1 = m.group()[2:]
+else:
+    c1 = 'opt'
 
-fig_path = f'/home/iom/snort3-git/npl_util/{"align_" if aligned == True else ""}{"normalized_" if normalized == True else ""}{"pinned_" if pinned == True else ""}{f"{sp_num}sp_" if sp_num != -1 else ""}{"L1_" if L1_breakdown == True else ""}{"tsc_" if enable_tsc == True else ""}{flow_cnt}.png'
+m = re.search('c2[a-zA-Z\-]+', data_path)
+if m is not None:
+    c2 = m.group()[2:]
+else:
+    c2 = 'van'
+
+plt.suptitle(f"Flow: {flow_cnt}, Aligned: {aligned}, Normalized: {normalized}, Pinned: {pinned}, L1: {L1_breakdown}, tsc: {enable_tsc}, component1: {c1}, component2: {c2}", size='xx-large')
+
+fig_path = f'/home/iom/snort3-git/npl_util/{"align_" if aligned == True else ""}{"normalized_" if normalized == True else ""}{"pinned_" if pinned == True else ""}{f"{sp_num}sp_" if sp_num != -1 else ""}{"L1_" if L1_breakdown == True else ""}{"tsc_" if enable_tsc == True else ""}{c1}_{c2}_{flow_cnt}.png'
 print(f"Writing to {fig_path}")
 plt.savefig(fig_path)
